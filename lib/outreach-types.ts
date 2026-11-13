@@ -22,6 +22,7 @@ export type OutreachRun = {
   delay: number;
   status: 'draft' | 'running' | 'paused' | 'completed';
   createdAt: string;
+  deletedAt?: string;
   saveContacts?: boolean;
   syncToPhone?: boolean;
   simulated?: boolean;

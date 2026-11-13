@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { read, update, audit, migrateLegacyOutreach } from '@/lib/store';
 import { simulation } from '@/lib/whatsapp';
-import { outreachWorkerLive } from '@/lib/outreach-engine';
+import { outreachWorkerLive, deleteOutreachRun } from '@/lib/outreach-engine';
 import { startOutreachWorker } from '@/lib/outreach-process';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,8 +21,9 @@ export async function GET() {
         ...session,
         qr: session.qrExpiresAt && session.qrExpiresAt > Date.now() ? session.qr : undefined,
       })),
-      runs: state.outreachRuns || [],
-      tasks: state.outreachTasks || [],
+      runs: (state.outreachRuns || []).filter((run) => !run.deletedAt),
+      tasks: (state.outreachTasks || []).filter((task) =>
+        state.outreachRuns?.some((run) => run.id === task.runId && !run.deletedAt)),
       messages: state.outreachMessages || [],
       workerLive: outreachWorkerLive(state),
       simulation: simulation(),
@@ -175,9 +176,12 @@ export async function POST(request: NextRequest) {
         );
         result = { id };
         audit(state, 'Robô: fila individual criada.');
+      } else if (body.action === 'run-delete' || body.action === 'run-restore') {
+        deleteOutreachRun(state, required(body.id), body.action === 'run-restore');
+        audit(state, body.action === 'run-delete' ? 'Robô: fila excluída.' : 'Robô: fila restaurada.');
       } else if (body.action === 'run-status') {
         const run = state.outreachRuns.find((run) => run.id === body.id);
-        if (!run || run.connector !== 'whatsapp-web')
+        if (!run || run.deletedAt || run.connector !== 'whatsapp-web')
           throw new Error('Fila inexistente ou sequência antiga somente para consulta.');
         if (!['running', 'paused'].includes(body.status)) throw new Error('Status inválido.');
         if (body.status === 'running') {

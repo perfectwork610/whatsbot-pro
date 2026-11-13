@@ -1,5 +1,13 @@
 export type Locale = 'en' | 'pt-BR';
 export const english: Record<string, string> = {
+  Excluir: 'Delete',
+  Cancelar: 'Cancel',
+  Desfazer: 'Undo',
+  'Excluir fila': 'Delete queue',
+  'Fila excluída': 'Queue deleted',
+  'Fila inexistente.': 'Queue not found.',
+  'Pause a fila e aguarde o envio atual terminar antes de excluir.': 'Pause the queue and wait for the current send to finish before deleting.',
+  'A fila será removida da lista e os envios pendentes serão interrompidos. Contatos, conexões e mensagens já enviadas serão preservados.': 'The queue will be removed from the list and pending sends will stop. Contacts, connections, and messages already sent will be preserved.',
   'O telefone não está registrado no WhatsApp.': 'This phone number is not registered on WhatsApp.',
   'Conexão WhatsApp Web não está pronta.': 'WhatsApp Web connection is not ready.',
   'Ignorado pelo operador após revisão.': 'Skipped by the operator after review.',

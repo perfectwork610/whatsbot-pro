@@ -16,6 +16,7 @@ import {
   Clock,
   ShieldCheck,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 import type { Contact, Message } from '@/lib/types';
 import type { OutreachSession, OutreachRun, OutreachTask } from '@/lib/outreach-types';
@@ -58,9 +59,12 @@ export default function OutreachPage({
     [saveContacts, setSaveContacts] = useState(true),
     [syncToPhone, setSyncToPhone] = useState(false),
     [detail, setDetail] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<OutreachRun | null>(null);
+  const [deleted, setDeleted] = useState<OutreachRun | null>(null);
   const connectionDialog = useRef<HTMLDialogElement>(null),
     runDialog = useRef<HTMLDialogElement>(null),
     detailDialog = useRef<HTMLDialogElement>(null);
+  const deleteDialog = useRef<HTMLDialogElement>(null);
   const refresh = useCallback(async () => {
     const response = await fetch('/api/outreach', { cache: 'no-store' });
     if (response.status === 401) {
@@ -209,6 +213,14 @@ export default function OutreachPage({
         </div>
       </header>
       {banner()}
+      {deleted && (
+        <div className="outreach-deleted" role="status">
+          <span>{t('Fila excluída')}: <strong>{deleted.name}</strong></span>
+          <button disabled={busy} onClick={async () => {
+            if (await action({ action: 'run-restore', id: deleted.id })) setDeleted(null);
+          }}>{t('Desfazer')}</button>
+        </div>
+      )}
       <div className="outreach-mode">
         <ShieldCheck size={18} />
         <span>
@@ -427,6 +439,16 @@ export default function OutreachPage({
                   <button className="outreach-secondary" onClick={() => showDetails(run.id)}>
                     {t('Ver contatos e respostas')}
                   </button>
+                  <button
+                    className="outreach-secondary outreach-danger"
+                    disabled={busy}
+                    aria-label={`${t('Excluir fila')}: ${run.name}`}
+                    onClick={() => {
+                      setDeleting(run);
+                      setError('');
+                      deleteDialog.current?.showModal();
+                    }}
+                  ><Trash2 size={16} />{t('Excluir')}</button>
                   {run.connector === 'whatsapp-web' && (
                     <button
                       className="outreach-primary"
@@ -479,6 +501,24 @@ export default function OutreachPage({
           )}
         </p>
       </div>
+      <dialog ref={deleteDialog} className="outreach-dialog" aria-labelledby="outreach-delete-title">
+        <header>
+          <h2 id="outreach-delete-title">{t('Excluir fila')}?</h2>
+          <button disabled={busy} aria-label={t('Fechar formulário')} onClick={() => deleteDialog.current?.close()}><X size={20} /></button>
+        </header>
+        {banner()}
+        <p className="outreach-delete-name">{deleting?.name}</p>
+        <p>{t('A fila será removida da lista e os envios pendentes serão interrompidos. Contatos, conexões e mensagens já enviadas serão preservados.')}</p>
+        <footer className="outreach-delete-actions">
+          <button className="outreach-secondary" disabled={busy} onClick={() => deleteDialog.current?.close()}>{t('Cancelar')}</button>
+          <button className="outreach-primary outreach-delete-confirm" disabled={busy} onClick={async () => {
+            if (deleting && await action({ action: 'run-delete', id: deleting.id })) {
+              setDeleted(deleting);
+              deleteDialog.current?.close();
+            }
+          }}><Trash2 size={16} />{t('Excluir fila')}</button>
+        </footer>
+      </dialog>
       <dialog
         ref={connectionDialog}
         className="outreach-dialog"

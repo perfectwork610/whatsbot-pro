@@ -1,4 +1,17 @@
 import type { State } from './types';
+export function deleteOutreachRun(state: State, id: string, restore = false) {
+  const run = state.outreachRuns?.find((r) => r.id === id);
+  if (!run) throw new Error('Fila inexistente.');
+  if (restore) {
+    run.deletedAt = undefined;
+    return;
+  }
+  if (state.outreachTasks?.some((task) => task.runId === id && task.status === 'processing'))
+    throw new Error('Pause a fila e aguarde o envio atual terminar antes de excluir.');
+  if (run.status === 'running') run.status = 'paused';
+  run.deletedAt ||= new Date().toISOString();
+  // Retain delivery records: deleting a queue must not reset sending limits.
+}
 export function renderOutreachText(template: string, name: string, business: string) {
   return template
     .replace(/\{\{\s*(nome|name|empresa|business)\s*\}\}/gi, (_, key: string) =>
@@ -17,7 +30,7 @@ export function reserveOutreach(state: State, simulated: boolean, now = Date.now
   const tasks = state.outreachTasks || [],
     sessions = state.outreachSessions || [];
   for (const run of state.outreachRuns || []) {
-    if (run.connector !== 'whatsapp-web' || run.status !== 'running') continue;
+    if (run.deletedAt || run.connector !== 'whatsapp-web' || run.status !== 'running') continue;
     const queue = tasks.filter((task) => task.runId === run.id);
     if (!queue.some((task) => task.status === 'pending' || task.status === 'processing')) {
       run.status = queue.some((task) => ['failed', 'needs-review'].includes(task.status))

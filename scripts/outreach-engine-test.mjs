@@ -1,7 +1,21 @@
 import assert from 'node:assert/strict';
-import { reserveOutreach, outreachAckStatus } from '../lib/outreach-engine.ts';
+import { reserveOutreach, outreachAckStatus, deleteOutreachRun } from '../lib/outreach-engine.ts';
 import { dispatchOutreach } from '../lib/outreach-dispatch.ts';
 const now = Date.now();
+{
+  const state = { outreachRuns: [{ id: 'r', status: 'running' }], outreachTasks: [{runId: 'r', status: 'processing'}] };
+  assert.throws(() => deleteOutreachRun(state, 'r'), /Pause/);
+  assert.equal(state.outreachRuns[0].status, 'running');
+  state.outreachTasks[0].status = 'sent';
+  deleteOutreachRun(state, 'r');
+  assert.ok(state.outreachRuns[0].deletedAt);
+  assert.equal(state.outreachRuns[0].status, 'paused');
+  assert.equal(state.outreachTasks[0].status, 'sent', 'delivery evidence survives deletion');
+  deleteOutreachRun(state, 'r', true);
+  assert.equal(state.outreachRuns[0].deletedAt, undefined);
+  assert.equal(state.outreachRuns[0].status, 'paused', 'undo must not resume sending');
+  assert.throws(() => deleteOutreachRun(state, 'missing'), /inexistente/);
+}
 function fixture() {
   return {
     contacts: [{ id: 'c', name: 'Alice', phone: '12025550101', consent: true, optedOut: false }],

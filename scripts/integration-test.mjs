@@ -774,6 +774,11 @@ check(
   ),
   'QR robot sends personalized text without Meta templates in its own simulated queue',
 );
+await outreachAction({ action: 'run-delete', id: webRun });
+check(!(await outreachState()).runs.some((r) => r.id === webRun), 'deleted queue is hidden');
+await outreachAction({ action: 'run-status', id: webRun, status: 'running' }, 400);
+await outreachAction({ action: 'run-restore', id: webRun });
+check((await outreachState()).tasks.some((j) => j.runId === webRun && j.status === 'sent'), 'undo restores delivery history');
 const officialAfter = await state();
 check(
   officialAfter.campaigns.length === officialBefore.campaigns.length &&
