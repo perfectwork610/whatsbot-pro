@@ -683,6 +683,11 @@ export default function Workspace() {
                     required
                     value={campaignAccount}
                     onChange={(e) => {
+                      if (e.target.value === '__add-account__') {
+                        navigate('Contas WhatsApp');
+                        setModal('account');
+                        return;
+                      }
                       setCampaignAccount(e.target.value);
                       setTemplateKey('');
                     }}
@@ -694,6 +699,7 @@ export default function Workspace() {
                         {a.name}
                       </option>
                     ))}
+                    <option value="__add-account__">＋ {t('Adicionar conta')}</option>
                   </select>
                 </Label>
                 <Label>
