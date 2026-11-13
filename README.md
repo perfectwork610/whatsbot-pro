@@ -1,6 +1,6 @@
 # WhatsBot Pro
 
-Portuguese WhatsApp operations app built from the client conversation: persistent contacts, campaign queues, individual outreach sequences, inbox, manual replies, official Cloud API adapter, signed webhooks, and CSV reports. Defaults to **simulation**, which never sends WhatsApp messages.
+Portuguese WhatsApp operations app built from the client conversation: persistent contacts, campaign queues, individual outreach sequences, official Cloud API adapter, signed webhooks, and CSV reports. Defaults to **simulation**, which never sends WhatsApp messages.
 
 ## Start
 
@@ -22,7 +22,7 @@ The worker operates independently of the browser. Set APP_URL to the exact brows
 
 ## Interface languages
 
-The workspace uses the same emerald design as the login page: grouped navigation, responsive cards, message activity charts, a conversation inbox, and consistent dialogs and controls. Overview, Contacts, Campaigns, Outreach bot, Inbox, WhatsApp accounts, Reports, and Settings share this styling. Charts use stored message activity; no sample totals are inserted into the workspace.
+The workspace uses the same emerald design as the login page: grouped navigation, responsive cards, message activity charts, and consistent dialogs and controls. Overview, Contacts, Campaigns, Outreach bot, WhatsApp accounts, Reports, and Settings share this styling. Charts use stored message activity; no sample totals are inserted into the workspace.
 
 Use the **English / Português** selector in the top bar. The app uses the browser language on the first visit and remembers your selection on that browser. Navigation, forms, statuses, application notifications/errors, operation history, dates, numbers, and CSV column names follow the selection. Both English and Portuguese CSV headers can be imported in either interface language. Changing the interface language does not translate or modify customer messages, campaign content, account names, or approved template language codes.
 
@@ -41,7 +41,6 @@ The login page follows the supplied emerald/white design, with responsive layout
 3. Record recipient consent and its source/date. A missing source leaves the contact ineligible. Reimporting a number never restores an unsubscribe.
 4. **Campanhas** creates an official-API bulk campaign. Choose an explicit API sender account, approved template, recipients, and interval. **Robô de envio** is now a separate WhatsApp Web workflow: connect numbers by QR, import contacts, write plain text, and process a separate one-by-one queue. Text body parameters go one per line; `{{nome}}` personalizes the name. Media, header, and button template parameters are not included in this version.
 5. Review and start the draft. Keep the worker running. Pause/resume controls affect pending sends; an already reserved send may finish. Simulated messages never appear as real deliveries.
-6. **Conversas**: select a contact/account and simulate an inbound message. Reply within its service window. Use SAIR to test suppression.
 7. **Relatórios** exports messages. **Configurações** includes the operation history.
 
 Contacts are stored in the shared database. The QR robot can additionally save a contact in the linked WhatsApp address book before sending, with an explicit option to sync to the phone address book. This depends on the linked WhatsApp Web client supporting that operation; a save failure pauses the queue before sending. The app does not scrape business directories or extract phone numbers from screenshots. Both workflows require recorded permission and honor opt-outs. Each robot recipient is assigned a fixed sender; hitting a local ceiling does not switch the recipient to another number.

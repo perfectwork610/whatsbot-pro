@@ -102,7 +102,7 @@ export default function Overview({
   data: State & { simulation: boolean };
   navigate: (
     tab:
-      'Contatos' | 'Campanhas' | 'Conversas' | 'Contas WhatsApp' | 'Robô de envio' | 'Configurações',
+      'Contatos' | 'Campanhas' | 'Contas WhatsApp' | 'Robô de envio' | 'Configurações',
   ) => void;
   onCampaign: () => void;
   onAddAccount: () => void;

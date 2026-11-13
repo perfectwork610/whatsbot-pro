@@ -33,7 +33,6 @@ import {
   statusLabels as labels,
 } from '@/components/workspace-ui';
 import './workspace.css';
-import WorkspaceInbox from '@/components/workspace-inbox';
 import WorkspaceReports from '@/components/workspace-reports';
 import AccountForm from '@/components/account-form';
 import ContactImport from '@/components/contact-import';
@@ -43,7 +42,6 @@ import ContactsPage from './contacts-page';
 import './contacts-page.css';
 import CampaignsPage from './campaigns-page';
 import './campaigns-page.css';
-import './inbox-page.css';
 import AccountsPage from './accounts-page';
 import './accounts-page.css';
 import SettingsPage from './settings-page';
@@ -62,7 +60,6 @@ type Tab =
   | 'Contatos'
   | 'Campanhas'
   | 'Robô de envio'
-  | 'Conversas'
   | 'Contas WhatsApp'
   | 'Relatórios'
   | 'Configurações';
@@ -145,8 +142,6 @@ export default function Workspace() {
       if (previous?.isConnected) previous.focus();
     };
   }, [modal]);
-  const [accountId, setAccountId] = useState('');
-  const [contactId, setContactId] = useState('');
   const [campaignAccount, setCampaignAccount] = useState('');
   const [recipientIds, setRecipientIds] = useState<string[]>([]);
   const importActive = useRef(false);
@@ -289,23 +284,11 @@ export default function Workspace() {
       simulation={data.simulation}
       accountCount={data.accounts.length}
       workspaceName={data.workspace?.name}
-      incomingCount={
-        data.messages.filter(
-          (message) =>
-            message.direction === 'in' &&
-            !!message.simulated === data.simulation &&
-            Date.parse(message.createdAt) >
-              Date.parse(
-                data.conversations?.[`${message.accountId}:${message.contactId}`]?.readAt ||
-                  '1970-01-01',
-              ),
-        ).length
-      }
     />
   );
   return (
     <div
-      className={`workspace min-h-screen ${tab === 'Visão geral' ? 'workspace--overview' : tab === 'Contatos' ? 'workspace--contacts' : tab === 'Campanhas' ? 'workspace--campaigns' : tab === 'Conversas' ? 'workspace--inbox' : tab === 'Contas WhatsApp' ? 'workspace--accounts' : tab === 'Configurações' ? 'workspace--settings' : tab === 'Relatórios' ? 'workspace--reports' : tab === 'Robô de envio' ? 'workspace--outreach' : ''}`}
+      className={`workspace min-h-screen ${tab === 'Visão geral' ? 'workspace--overview' : tab === 'Contatos' ? 'workspace--contacts' : tab === 'Campanhas' ? 'workspace--campaigns' : tab === 'Contas WhatsApp' ? 'workspace--accounts' : tab === 'Configurações' ? 'workspace--settings' : tab === 'Relatórios' ? 'workspace--reports' : tab === 'Robô de envio' ? 'workspace--outreach' : ''}`}
     >
       <aside className="workspace-sidebar fixed inset-y-0 left-0 z-40 hidden w-64 flex-col text-white lg:flex">
         {nav}
@@ -346,7 +329,6 @@ export default function Workspace() {
           {tab === 'Visão geral' ||
           tab === 'Contatos' ||
           tab === 'Campanhas' ||
-          tab === 'Conversas' ||
           tab === 'Contas WhatsApp' ||
           tab === 'Configurações' ||
           tab === 'Relatórios' ||
@@ -478,17 +460,6 @@ export default function Workspace() {
               busy={busy}
               onAdd={() => setModal('account')}
               onAction={act}
-            />
-          )}
-          {tab === 'Conversas' && (
-            <WorkspaceInbox
-              data={data}
-              accountId={accountId}
-              contactId={contactId}
-              setAccountId={setAccountId}
-              setContactId={setContactId}
-              onAction={act}
-              busy={busy}
             />
           )}
           {tab === 'Relatórios' && <WorkspaceReports data={data} />}

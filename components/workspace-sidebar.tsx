@@ -2,7 +2,6 @@
 import {
   BarChart3,
   Bot,
-  Inbox,
   LayoutDashboard,
   Send,
   Settings,
@@ -18,7 +17,6 @@ export type WorkspaceTab =
   | 'Contatos'
   | 'Campanhas'
   | 'Robô de envio'
-  | 'Conversas'
   | 'Contas WhatsApp'
   | 'Relatórios'
   | 'Configurações';
@@ -30,7 +28,6 @@ const groups = [
       { name: 'Contatos', icon: Users },
       { name: 'Campanhas', icon: Send },
       { name: 'Robô de envio', icon: Bot },
-      { name: 'Conversas', icon: Inbox },
     ],
   },
   {
@@ -47,14 +44,12 @@ export default function WorkspaceSidebar({
   onNavigate,
   simulation,
   accountCount = 0,
-  incomingCount = 0,
   workspaceName,
 }: {
   tab: WorkspaceTab;
   onNavigate: (tab: WorkspaceTab) => void;
   simulation: boolean;
   accountCount?: number;
-  incomingCount?: number;
   workspaceName?: string;
 }) {
   const { t, locale } = useLanguage();
@@ -79,11 +74,6 @@ export default function WorkspaceSidebar({
               >
                 <item.icon size={18} />
                 <span>{t(item.name)}</span>
-                {item.name === 'Conversas' && incomingCount > 0 ? (
-                  <small className="overview-inbox-count">
-                    {incomingCount.toLocaleString(locale)}
-                  </small>
-                ) : null}
               </button>
             ))}
           </div>
