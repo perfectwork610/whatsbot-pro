@@ -9,7 +9,10 @@
 .contacts-heading-actions{display:flex;gap:12px;flex-shrink:0}
 .contacts-heading-actions button,.contacts-editor button.contacts-primary{display:flex;align-items:center;justify-content:center;gap:9px;border:1px solid #e4e9ed;background:#ffffffd9;border-radius:12px;padding:13px 18px;min-height:47px;font-size:14px;font-weight:600;box-shadow:0 2px 4px #122f2404;white-space:nowrap}
 .contacts-heading-actions button:hover{background:#f0faf4}
-.contacts-page .contacts-primary{background:linear-gradient(110deg,#008132,#00a643);color:white;border-color:#00943d;box-shadow:0 4px 10px #00a34921}
+.contacts-page .contacts-primary,.contacts-editor button.contacts-primary{background:linear-gradient(110deg,#008132,#00a643);color:white;border-color:#00943d;box-shadow:0 4px 10px #00a34921}
+.contacts-editor button.contacts-primary:hover:not(:disabled){background:linear-gradient(110deg,#006d2a,#008e39)}
+.contacts-editor button.contacts-primary:focus-visible{outline:3px solid #86dfaa;outline-offset:3px}
+.contacts-editor button.contacts-primary:disabled{opacity:.55;cursor:wait}
 .contacts-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;margin:0 0 24px;padding:0 8px}
 .contacts-stat{display:flex;align-items:flex-start;gap:23px;background:linear-gradient(130deg,#fff,#fcfefd);border:1px solid #ffffff;border-radius:22px;min-height:132px;padding:23px;box-shadow:0 4px 7px #185e3e06}
 .contacts-stat-icon{display:grid;place-items:center;width:64px;height:64px;flex-shrink:0;border-radius:25px;background:#cdf5dc;color:#00b83b}
