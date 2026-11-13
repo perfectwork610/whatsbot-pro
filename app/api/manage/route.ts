@@ -3,6 +3,7 @@ import { audit, read, update, migrateLegacyOutreach } from '@/lib/store';
 import { graph, send, simulation } from '@/lib/whatsapp';
 import { randomInt } from 'node:crypto';
 import { greetingText } from '@/lib/greeting-text';
+import { removeContacts } from '@/lib/contact-removal';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 const text = (v: unknown, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -17,6 +18,8 @@ export async function GET() {
   return NextResponse.json(
     {
       ...s,
+      contacts: s.contacts.filter((c) => !c.deletedAt),
+      campaigns: s.campaigns.filter((c) => !c.deletedAt),
       accounts: s.accounts.map((a) => ({ ...a, configured: !!process.env[a.tokenEnv] })),
       simulation: simulation(),
     },
@@ -67,6 +70,12 @@ export async function POST(req: NextRequest) {
         audit(s, `Importação: ${added} novos, ${duplicates} duplicados, ${invalid} inválidos.`);
         return { added, duplicates, invalid };
       });
+    } else if (b.action === 'contacts-remove' || b.action === 'contacts-restore') {
+      result = update((s) => {
+        const result = removeContacts(s, b.ids, b.action === 'contacts-restore');
+        audit(s, `${result.count} contato(s) ${b.action === 'contacts-remove' ? 'removidos' : 'restaurados'}.`);
+        return result;
+      });
     } else if (b.action === 'contact-update') {
       const name = required(b.name, 'Nome');
       const phone = required(b.phone, 'Telefone').replace(/[\s()+.\-]/g, '');
@@ -82,7 +91,7 @@ export async function POST(req: NextRequest) {
         throw new Error('Listas inválidas.');
       update((s) => {
         const contact = s.contacts.find((c) => c.id === b.id);
-        if (!contact) throw new Error('Contato inexistente.');
+        if (!contact || contact.deletedAt) throw new Error('Contato inexistente.');
         if (s.contacts.some((c) => c.id !== contact.id && c.phone === phone))
           throw new Error('Número já cadastrado.');
         // Consent evidence belongs to the original number and cannot be transferred.
@@ -98,7 +107,7 @@ export async function POST(req: NextRequest) {
     } else if (b.action === 'consent') {
       update((s) => {
         const c = s.contacts.find((c) => c.id === b.id);
-        if (!c) throw new Error('Contato inexistente.');
+        if (!c || c.deletedAt) throw new Error('Contato inexistente.');
         c.consent = b.consent === true;
         if (c.consent) {
           c.source = required(b.source, 'Comprovante de consentimento', 500);
@@ -250,10 +259,24 @@ export async function POST(req: NextRequest) {
         );
         audit(s, `Campanha ${name} criada com ${recipients.length} destinatários.`);
       });
+    } else if (b.action === 'campaign-remove' || b.action === 'campaign-restore') {
+      update((s) => {
+        const c = s.campaigns.find((c) => c.id === b.id);
+        if (!c || c.mode !== 'bulk') throw new Error('Campanha inexistente.');
+        if (b.action === 'campaign-restore') {
+          c.deletedAt = undefined;
+        } else {
+          if (s.jobs.some((j) => j.campaignId === c.id && j.status === 'processing'))
+            throw new Error('Pause a campanha e aguarde o envio atual terminar antes de remover.');
+          if (c.status === 'running') c.status = 'paused';
+          c.deletedAt ||= new Date().toISOString();
+        }
+        audit(s, `Campanha ${c.name}: ${b.action === 'campaign-remove' ? 'removida' : 'restaurada'}.`);
+      });
     } else if (b.action === 'campaign-status') {
       update((s) => {
         const c = s.campaigns.find((c) => c.id === b.id);
-        if (!c) throw new Error('Campanha inexistente.');
+        if (!c || c.deletedAt) throw new Error('Campanha inexistente.');
         if (!['running', 'paused'].includes(b.status)) throw new Error('Status inválido.');
         if (
           b.status === 'running' &&
@@ -302,7 +325,7 @@ export async function POST(req: NextRequest) {
       const c = s.contacts.find((c) => c.id === b.contactId);
       const a = s.accounts.find((a) => a.id === b.accountId);
       const body = required(b.text, 'Mensagem', 4000);
-      if (!c || !a || c.optedOut) throw new Error('Contato ou conta indisponível.');
+      if (!c || c.deletedAt || !a || c.optedOut) throw new Error('Contato ou conta indisponível.');
       if (a.enabled === false)
         throw new Error('Esta conta está inativa. Ative a conta para enviar mensagens.');
       if (

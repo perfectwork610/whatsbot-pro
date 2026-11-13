@@ -18,6 +18,7 @@ import {
   MessageSquare,
   ChevronLeft,
   ChevronRight,
+  Trash2,
 } from 'lucide-react';
 import type { Campaign, State } from '@/lib/types';
 import { overviewData } from '@/lib/overview-data';
@@ -30,11 +31,15 @@ export default function CampaignsPage({
   busy,
   onCreate,
   onStatus,
+  onRemove,
+  onRestore,
 }: {
   data: State & { simulation: boolean };
   busy: boolean;
   onCreate: () => void;
   onStatus: (c: Campaign) => void;
+  onRemove: (c: Campaign) => Promise<boolean>;
+  onRestore: (c: Campaign) => Promise<boolean>;
 }) {
   const { t, locale } = useLanguage();
   const [filter, setFilter] = useState<Status>('all'),
@@ -45,6 +50,10 @@ export default function CampaignsPage({
     [detail, setDetail] = useState<Campaign | null>(null),
     [page, setPage] = useState(0);
   const dialog = useRef<HTMLDialogElement>(null);
+  const removeDialog = useRef<HTMLDialogElement>(null);
+  const [removing, setRemoving] = useState<Campaign | null>(null);
+  const [removed, setRemoved] = useState<Campaign | null>(null);
+  const [removeError, setRemoveError] = useState(false);
   const campaigns = data.campaigns.filter((c) => c.mode === 'bulk');
   const jobs = useMemo(() => {
     const map = new Map<string, State['jobs']>();
@@ -135,6 +144,12 @@ export default function CampaignsPage({
           {t('Nova campanha')}
         </button>
       </header>
+      {removed && <div className="campaigns-removed" role="status">
+        <span>{t('Campanha removida')}: <strong>{removed.name}</strong></span>
+        <button disabled={busy} onClick={async () => {
+          if (await onRestore(removed)) setRemoved(null);
+        }}>{t('Desfazer')}</button>
+      </div>}
       <div className="campaigns-stats">
         {[
           {
@@ -471,6 +486,17 @@ export default function CampaignsPage({
                         >
                           <MoreHorizontal size={21} />
                         </button>
+                        <button
+                          className="campaigns-remove"
+                          disabled={busy}
+                          aria-label={`${t('Remover campanha')}: ${c.name}`}
+                          title={t('Remover campanha')}
+                          onClick={() => {
+                            setRemoving(c);
+                            setRemoveError(false);
+                            removeDialog.current?.showModal();
+                          }}
+                        ><Trash2 size={18} /></button>
                       </div>
                     </td>
                   </tr>
@@ -513,6 +539,29 @@ export default function CampaignsPage({
           </footer>
         )}
       </section>
+      <dialog className="campaigns-detail campaigns-remove-dialog" ref={removeDialog} aria-labelledby="campaign-remove-title">
+        <header>
+          <h2 id="campaign-remove-title">{t('Remover campanha')}?</h2>
+          <button disabled={busy} aria-label={t('Cancelar')} onClick={() => removeDialog.current?.close()}><X size={20} /></button>
+        </header>
+        <strong className="campaigns-remove-name">{removing?.name}</strong>
+        <p>{t('A campanha será removida da lista e os envios pendentes serão interrompidos. Contatos e mensagens já enviadas serão preservados.')}</p>
+        {removing && (jobs.get(removing.id) || []).some((j) => j.status === 'processing') &&
+          <p role="alert">{t('Pause a campanha e aguarde o envio atual terminar antes de remover.')}</p>}
+        {removeError && <p role="alert">{t('Não foi possível remover. Aguarde o envio atual terminar e tente novamente.')}</p>}
+        <footer>
+          <button className="campaigns-remove-cancel" disabled={busy} onClick={() => removeDialog.current?.close()}>{t('Cancelar')}</button>
+          <button className="campaigns-remove-confirm" disabled={busy || !!(removing && (jobs.get(removing.id) || []).some((j) => j.status === 'processing'))} onClick={async () => {
+            if (!removing) return;
+            setRemoveError(false);
+            if (await onRemove(removing)) {
+              setRemoved(removing);
+              setSelected((previous) => { const next = new Set(previous); next.delete(removing.id); return next; });
+              removeDialog.current?.close();
+            } else setRemoveError(true);
+          }}><Trash2 size={16} />{t('Remover campanha')}</button>
+        </footer>
+      </dialog>
       <dialog
         className="campaigns-detail"
         ref={dialog}

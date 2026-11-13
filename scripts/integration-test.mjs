@@ -280,6 +280,11 @@ await action({
 });
 s = await state();
 const campaign = s.campaigns.find((c) => c.name === `Queue ${seed}`);
+await action({ action: 'campaign-remove', id: campaign.id });
+check(!(await state()).campaigns.some((c) => c.id === campaign.id), 'removed campaign is hidden from management');
+await action({ action: 'campaign-status', id: campaign.id, status: 'running' }, 400);
+await action({ action: 'campaign-restore', id: campaign.id });
+check((await state()).jobs.some((j) => j.campaignId === campaign.id && j.status === 'pending'), 'campaign undo preserves queued recipients');
 await action({ action: 'consent', id: c3.id, consent: false });
 await action({ action: 'campaign-status', id: campaign.id, status: 'running' });
 await action({ action: 'account-update', id: account.id, enabled: false });
@@ -797,6 +802,13 @@ check(
 );
 await action({ action: 'campaign', mode: 'sequential' }, 400);
 check(true, 'legacy sequential creation no longer duplicates bulk campaigns');
+await action({ action: 'contacts-remove', ids: [c1.id, 'missing-contact'] }, 400);
+check((await state()).contacts.some(c => c.id === c1.id), 'invalid bulk removal leaves contacts unchanged');
+await action({ action: 'contacts-remove', ids: [c1.id, webContact.id] });
+const afterContactRemoval = await state();
+check(!afterContactRemoval.contacts.some(c => [c1.id, webContact.id].includes(c.id)), 'bulk removal hides selected contacts');
+await action({ action: 'contacts-restore', ids: [c1.id, webContact.id] });
+check((await state()).contacts.filter(c => [c1.id, webContact.id].includes(c.id)).every(c => !c.consent), 'contact undo does not restore sending permission');
 const csrfLogout = await fetch(base + '/api/auth/logout', {
   method: 'POST',
   headers: { Cookie: auth, Origin: 'https://evil.example' },

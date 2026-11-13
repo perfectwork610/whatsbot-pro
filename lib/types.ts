@@ -1,5 +1,6 @@
 import type { OutreachRun, OutreachTask, OutreachSession } from './outreach-types';
 export type Contact = {
+  deletedAt?: string;
   lists?: string[];
   id: string;
   name: string;
@@ -32,6 +33,7 @@ export type Campaign = {
   delay: number;
   status: 'draft' | 'running' | 'paused' | 'completed';
   createdAt: string;
+  deletedAt?: string;
 };
 export type Message = {
   id: string;

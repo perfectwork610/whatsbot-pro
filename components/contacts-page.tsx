@@ -18,6 +18,7 @@ import {
   ChevronRight,
   X,
   ArrowUpRight,
+  Trash2,
 } from 'lucide-react';
 import type { Contact } from '@/lib/types';
 import { useLanguage } from './language';
@@ -33,6 +34,8 @@ export default function ContactsPage({
   onAdd,
   onSave,
   onPermission,
+  onRemove,
+  onRestore,
 }: {
   contacts: Contact[];
   busy: boolean;
@@ -40,6 +43,8 @@ export default function ContactsPage({
   onAdd: () => void;
   onSave: (c: Pick<Contact, 'id' | 'name' | 'phone' | 'lists'>) => Promise<boolean>;
   onPermission: (c: Contact) => void;
+  onRemove: (ids: string[]) => Promise<boolean>;
+  onRestore: (ids: string[]) => Promise<boolean>;
 }) {
   const { t, locale } = useLanguage();
   const [query, setQuery] = useState(''),
@@ -54,6 +59,16 @@ export default function ContactsPage({
     [menu, setMenu] = useState<string | null>(null),
     [editing, setEditing] = useState<Contact | null>(null);
   const editor = useRef<HTMLDialogElement>(null);
+  const removalDialog = useRef<HTMLDialogElement>(null);
+  const [removing, setRemoving] = useState<Contact[]>([]);
+  const [removed, setRemoved] = useState<string[]>([]);
+  const [removeError, setRemoveError] = useState(false);
+  function showRemoval(items: Contact[]) {
+    setRemoving(items);
+    setRemoveError(false);
+    setMenu(null);
+    removalDialog.current?.showModal();
+  }
   useEffect(() => {
     setPage(0);
     setSelected(new Set());
@@ -178,6 +193,10 @@ export default function ContactsPage({
         <button aria-label={`${t('Editar contato')}: ${c.name}`} onClick={() => setEditing(c)}>
           <Pencil size={17} />
         </button>
+        <button className="contacts-remove" disabled={busy} title={t('Remover contato')}
+          aria-label={`${t('Remover contato')}: ${c.name}`} onClick={() => showRemoval([c])}>
+          <Trash2 size={17} />
+        </button>
         <div className="contacts-row-menu">
           <button
             aria-label={`${t('Mais ações')}: ${c.name}`}
@@ -239,6 +258,12 @@ export default function ContactsPage({
           </button>
         </div>
       </header>
+      {removed.length > 0 && <div className="contacts-removal-notice" role="status">
+        <span>{number(removed.length)} {t('contatos removidos')}</span>
+        <button disabled={busy} onClick={async () => {
+          if (await onRestore(removed)) setRemoved([]);
+        }}>{t('Desfazer')}</button>
+      </div>}
       <div className="contacts-stats">
         {[
           {
@@ -359,11 +384,20 @@ export default function ContactsPage({
             ))}
           </div>
         </div>
+        {selected.size > 0 && <div className="contacts-selection-bar">
+          <strong>{number(selected.size)} {t('selecionados')}</strong>
+          <button disabled={busy} onClick={() => setSelected(new Set())}>{t('Limpar seleção')}</button>
+          <button className="contacts-selected-remove" disabled={busy} onClick={() => showRemoval(contacts.filter(c => selected.has(c.id)))}>
+            <Trash2 size={16} />{t('Remover selecionados')} ({number(selected.size)})
+          </button>
+        </div>}
         <div className={`contacts-results contacts-results--${view}`}>
           {view === 'grid' ? (
             <div className="contacts-grid">
               {rows.map((c, i) => (
                 <article key={c.id}>
+                  <input type="checkbox" aria-label={`${t('Selecionar contato')}: ${c.name}`}
+                    checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                   {name(c, i)}
                   <p>
                     <WhatsAppMark /> +{c.phone}
@@ -498,6 +532,27 @@ export default function ContactsPage({
           </label>
         </footer>
       </section>
+      <dialog ref={removalDialog} className="contacts-editor contacts-remove-dialog" aria-labelledby="contacts-remove-title">
+        <header>
+          <h2 id="contacts-remove-title">{t(removing.length === 1 ? 'Remover contato' : 'Remover contatos')}?</h2>
+          <button disabled={busy} aria-label={t('Cancelar')} onClick={() => removalDialog.current?.close()}><X size={20} /></button>
+        </header>
+        <p><strong>{removing.length === 1 ? removing[0]?.name : `${number(removing.length)} ${t('contatos selecionados')}`}</strong></p>
+        <p>{t('Os contatos serão removidos da lista e seus envios pendentes serão cancelados. O histórico de mensagens será preservado.')}</p>
+        <p>{t('Ao desfazer, registre a permissão novamente antes de enviar.')}</p>
+        {removeError && <p role="alert">{t('Não foi possível remover. Aguarde os envios em processamento terminarem e tente novamente.')}</p>}
+        <footer>
+          <button disabled={busy} onClick={() => removalDialog.current?.close()}>{t('Cancelar')}</button>
+          <button className="contacts-selected-remove" disabled={busy} onClick={async () => {
+            const ids = removing.map(c => c.id);
+            if (await onRemove(ids)) {
+              setRemoved(ids);
+              setSelected(previous => new Set([...previous].filter(id => !ids.includes(id))));
+              removalDialog.current?.close();
+            } else setRemoveError(true);
+          }}><Trash2 size={16} />{t('Remover')} ({number(removing.length)})</button>
+        </footer>
+      </dialog>
       <dialog
         ref={editor}
         className="contacts-editor"

@@ -418,6 +418,8 @@ export default function Workspace() {
             <ContactsPage
               contacts={data.contacts}
               busy={busy}
+              onRemove={(ids) => act({ action: 'contacts-remove', ids }, 'Contatos removidos.')}
+              onRestore={(ids) => act({ action: 'contacts-restore', ids }, 'Contatos restaurados. Registre a permissão antes de enviar novamente.')}
               onImport={() => {
                 setImportProgress(null);
                 setModal('import');
@@ -443,6 +445,8 @@ export default function Workspace() {
             <CampaignsPage
               data={data}
               busy={busy}
+              onRemove={(c) => act({ action: 'campaign-remove', id: c.id }, 'Campanha removida.')}
+              onRestore={(c) => act({ action: 'campaign-restore', id: c.id }, 'Campanha restaurada.')}
               onCreate={openCampaign}
               onStatus={(c) => {
                 void act(
