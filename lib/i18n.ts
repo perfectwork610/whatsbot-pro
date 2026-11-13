@@ -1,5 +1,7 @@
 export type Locale = 'en' | 'pt-BR';
 export const english: Record<string, string> = {
+  'Selecionar todos os contatos': 'Select all contacts',
+  'Em todas as páginas, respeitando os filtros atuais.': 'Across all pages, matching the current filters.',
   Remover: 'Remove',
   'Remover contato': 'Remove contact',
   'Remover contatos': 'Remove contacts',

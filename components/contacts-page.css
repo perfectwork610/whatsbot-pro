@@ -44,11 +44,9 @@
 .workspace--contacts .contacts-results th:first-child,.workspace--contacts .contacts-results td:first-child{padding-left:14px;padding-right:9px}
 .workspace--contacts .contacts-results .contacts-source,.workspace--contacts .contacts-results .contacts-date{font-size:13px}
 .workspace--contacts .contacts-results--compact td{height:43px;padding-top:5px;padding-bottom:5px}
-.contacts-table-scroll{max-height:337px;scrollbar-width:thin;scrollbar-color:#d8e7dd transparent}
+.contacts-table-scroll{scrollbar-width:thin;scrollbar-color:#d8e7dd transparent}
 .contacts-heading{margin-bottom:24px}
 .contacts-pagination{min-height:91px}
-@media(max-width:767px){.contacts-table-scroll{max-height:440px}.contacts-heading{margin-bottom:20px}.contacts-pagination{min-height:115px}}
-.contacts-table-scroll{max-height:325px}
+@media(max-width:767px){.contacts-heading{margin-bottom:20px}.contacts-pagination{min-height:115px}}
 @media(min-width:1451px){.contacts-stat{padding-top:21px;padding-bottom:21px}.contacts-person>strong,.contacts-phone{font-size:15px}.workspace--contacts .contacts-results th{font-size:14px}}
-@media(max-width:767px){.contacts-table-scroll{max-height:440px}}
 .contacts-actions .contacts-remove{color:#c34444}.contacts-selection-bar,.contacts-removal-notice{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 18px;background:#eff9f3;border:1px solid #d8ebe0;border-radius:12px;margin:12px 0;font-size:12px;color:#375c44}.contacts-selection-bar>button,.contacts-removal-notice>button{padding:8px 12px;border-radius:8px;color:#008d3b}.contacts-selected-remove{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:#c64040!important;color:#fff!important;border:1px solid #c64040!important;border-radius:10px;padding:10px 14px;font-size:12px}.contacts-selection-bar .contacts-selected-remove{margin-left:auto}.contacts-remove-dialog>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}.contacts-remove-dialog>p{font-size:13px;line-height:1.7;color:#627d6b;margin:12px 0;overflow-wrap:anywhere}.contacts-remove-dialog>p[role=alert]{color:#b63f3f}.contacts-remove-dialog>footer{display:flex;justify-content:flex-end;gap:12px;margin-top:22px}.contacts-remove-dialog>footer>button{padding:10px 14px;border:1px solid #dce9e0;border-radius:10px;font-size:13px}.contacts-remove-dialog button:disabled{opacity:.4}.contacts-grid article>input[type=checkbox]{margin-bottom:12px}

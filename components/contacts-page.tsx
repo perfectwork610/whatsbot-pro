@@ -72,7 +72,8 @@ export default function ContactsPage({
   useEffect(() => {
     setPage(0);
     setSelected(new Set());
-  }, [query, filter, permission, list, source, size]);
+  }, [query, filter, permission, list, source]);
+  useEffect(() => { setPage(0); }, [size]);
   useEffect(() => {
     if (editing) editor.current?.showModal();
   }, [editing]);
@@ -136,7 +137,13 @@ export default function ContactsPage({
       else next.add(id);
       return next;
     });
-  const allChecked = !!rows.length && rows.every((c) => selected.has(c.id));
+  const allChecked = !!filtered.length && filtered.every((c) => selected.has(c.id));
+  const selectAll = () => setSelected(new Set(filtered.map((c) => c.id)));
+  const selectionCheckbox = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (selectionCheckbox.current)
+      selectionCheckbox.current.indeterminate = selected.size > 0 && !allChecked;
+  }, [selected, allChecked, view]);
   const pages = Array.from(
     new Set([
       0,
@@ -384,12 +391,16 @@ export default function ContactsPage({
             ))}
           </div>
         </div>
-        {selected.size > 0 && <div className="contacts-selection-bar">
+        {filtered.length > 0 && <div className="contacts-selection-bar">
           <strong>{number(selected.size)} {t('selecionados')}</strong>
-          <button disabled={busy} onClick={() => setSelected(new Set())}>{t('Limpar seleção')}</button>
-          <button className="contacts-selected-remove" disabled={busy} onClick={() => showRemoval(contacts.filter(c => selected.has(c.id)))}>
-            <Trash2 size={16} />{t('Remover selecionados')} ({number(selected.size)})
+          <button disabled={busy || allChecked} onClick={selectAll}>
+            {t('Selecionar todos os contatos')} ({number(filtered.length)})
           </button>
+          <span>{t('Em todas as páginas, respeitando os filtros atuais.')}</span>
+          {selected.size > 0 && <button disabled={busy} onClick={() => setSelected(new Set())}>{t('Limpar seleção')}</button>}
+          {selected.size > 0 && <button className="contacts-selected-remove" disabled={busy} onClick={() => showRemoval(contacts.filter(c => selected.has(c.id)))}>
+            <Trash2 size={16} />{t('Remover selecionados')} ({number(selected.size)})
+          </button>}
         </div>}
         <div className={`contacts-results contacts-results--${view}`}>
           {view === 'grid' ? (
@@ -416,15 +427,12 @@ export default function ContactsPage({
                     <th>
                       <input
                         type="checkbox"
-                        aria-label={t('Selecionar página')}
+                        ref={selectionCheckbox}
+                        aria-label={t('Selecionar todos os contatos')}
+                        aria-checked={selected.size > 0 && !allChecked ? 'mixed' : allChecked}
+                        title={t('Em todas as páginas, respeitando os filtros atuais.')}
                         checked={allChecked}
-                        onChange={() =>
-                          setSelected((old) => {
-                            const next = new Set(old);
-                            rows.forEach((c) => (allChecked ? next.delete(c.id) : next.add(c.id)));
-                            return next;
-                          })
-                        }
+                        onChange={() => allChecked ? setSelected(new Set()) : selectAll()}
                       />
                     </th>
                     {[
@@ -547,7 +555,8 @@ export default function ContactsPage({
             const ids = removing.map(c => c.id);
             if (await onRemove(ids)) {
               setRemoved(ids);
-              setSelected(previous => new Set([...previous].filter(id => !ids.includes(id))));
+              const removedIds = new Set(ids);
+              setSelected(previous => new Set([...previous].filter(id => !removedIds.has(id))));
               removalDialog.current?.close();
             } else setRemoveError(true);
           }}><Trash2 size={16} />{t('Remover')} ({number(removing.length)})</button>
