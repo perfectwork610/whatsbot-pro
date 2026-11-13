@@ -22,6 +22,8 @@ The worker operates independently of the browser. Set APP_URL to the exact brows
 
 ## Interface languages
 
+The workspace uses the same emerald design as the login page: grouped navigation, responsive cards, message activity charts, a conversation inbox, live greeting preview, and consistent dialogs and controls. Overview, Contacts, Campaigns, Outreach bot, Inbox, WhatsApp accounts, Customer service, Reports, and Settings share this styling. Charts use stored message activity; no sample totals are inserted into the workspace.
+
 Use the **English / Português** selector in the top bar. The app uses the browser language on the first visit and remembers your selection on that browser. Navigation, forms, statuses, application notifications/errors, operation history, dates, numbers, and CSV column names follow the selection. Both English and Portuguese CSV headers can be imported in either interface language. Changing the interface language does not translate or modify customer messages, campaign content, saved greetings, account names, or approved template language codes.
 
 ## Login and logout
