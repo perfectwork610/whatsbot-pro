@@ -1,6 +1,6 @@
 # WhatsBot Pro
 
-Portuguese WhatsApp operations app built from the client conversation: persistent contacts, campaign queues, individual outreach sequences, inbox, automatic greeting, official Cloud API adapter, signed webhooks, and CSV reports. Defaults to **simulation**, which never sends WhatsApp messages.
+Portuguese WhatsApp operations app built from the client conversation: persistent contacts, campaign queues, individual outreach sequences, inbox, manual replies, official Cloud API adapter, signed webhooks, and CSV reports. Defaults to **simulation**, which never sends WhatsApp messages.
 
 ## Start
 
@@ -22,9 +22,9 @@ The worker operates independently of the browser. Set APP_URL to the exact brows
 
 ## Interface languages
 
-The workspace uses the same emerald design as the login page: grouped navigation, responsive cards, message activity charts, a conversation inbox, live greeting preview, and consistent dialogs and controls. Overview, Contacts, Campaigns, Outreach bot, Inbox, WhatsApp accounts, Customer service, Reports, and Settings share this styling. Charts use stored message activity; no sample totals are inserted into the workspace.
+The workspace uses the same emerald design as the login page: grouped navigation, responsive cards, message activity charts, a conversation inbox, and consistent dialogs and controls. Overview, Contacts, Campaigns, Outreach bot, Inbox, WhatsApp accounts, Reports, and Settings share this styling. Charts use stored message activity; no sample totals are inserted into the workspace.
 
-Use the **English / Português** selector in the top bar. The app uses the browser language on the first visit and remembers your selection on that browser. Navigation, forms, statuses, application notifications/errors, operation history, dates, numbers, and CSV column names follow the selection. Both English and Portuguese CSV headers can be imported in either interface language. Changing the interface language does not translate or modify customer messages, campaign content, saved greetings, account names, or approved template language codes.
+Use the **English / Português** selector in the top bar. The app uses the browser language on the first visit and remembers your selection on that browser. Navigation, forms, statuses, application notifications/errors, operation history, dates, numbers, and CSV column names follow the selection. Both English and Portuguese CSV headers can be imported in either interface language. Changing the interface language does not translate or modify customer messages, campaign content, account names, or approved template language codes.
 
 ## Login and logout
 
@@ -41,7 +41,7 @@ The login page follows the supplied emerald/white design, with responsive layout
 3. Record recipient consent and its source/date. A missing source leaves the contact ineligible. Reimporting a number never restores an unsubscribe.
 4. **Campanhas** creates an official-API bulk campaign. Choose an explicit API sender account, approved template, recipients, and interval. **Robô de envio** is now a separate WhatsApp Web workflow: connect numbers by QR, import contacts, write plain text, and process a separate one-by-one queue. Text body parameters go one per line; `{{nome}}` personalizes the name. Media, header, and button template parameters are not included in this version.
 5. Review and start the draft. Keep the worker running. Pause/resume controls affect pending sends; an already reserved send may finish. Simulated messages never appear as real deliveries.
-6. **Conversas**: select a contact/account and simulate an inbound message. Reply within its service window. Use SAIR to test suppression. **Atendimento** enables a first-message greeting, not an AI sales agent.
+6. **Conversas**: select a contact/account and simulate an inbound message. Reply within its service window. Use SAIR to test suppression.
 7. **Relatórios** exports messages. **Configurações** includes the operation history.
 
 Contacts are stored in the shared database. The QR robot can additionally save a contact in the linked WhatsApp address book before sending, with an explicit option to sync to the phone address book. This depends on the linked WhatsApp Web client supporting that operation; a save failure pauses the queue before sending. The app does not scrape business directories or extract phone numbers from screenshots. Both workflows require recorded permission and honor opt-outs. Each robot recipient is assigned a fixed sender; hitting a local ceiling does not switch the recipient to another number.
@@ -72,13 +72,13 @@ npm run worker
 
 Deploy as a **single persistent Node.js instance** with durable local disk, an HTTPS reverse proxy, and a process supervisor. This is a single-operator pilot, not a multi-tenant SaaS. Server-side sessions protect the dashboard and management API; ADMIN_PASSWORD must be configured. Use HTTPS and set APP_URL to the public HTTPS origin. Worker requests require a separate WORKER_SECRET. Webhook authentication uses the Meta app secret. Management writes validate the browser origin. Do not expose development mode publicly.
 
-SQLite is stored in `data/whatsbot.sqlite`, overridable with DATA_DIR. Transactions reserve work before the external send. Concurrent worker requests cannot reserve the same job. The queue enforces an interval shared by campaigns on each account and a rolling 24-hour local ceiling. Permission is checked again immediately before dispatch. Manual service replies and greetings require a recent inbound message on that account.
+SQLite is stored in `data/whatsbot.sqlite`, overridable with DATA_DIR. Transactions reserve work before the external send. Concurrent worker requests cannot reserve the same job. The queue enforces an interval shared by campaigns on each account and a rolling 24-hour local ceiling. Permission is checked again immediately before dispatch. Manual replies require a recent inbound message on that account.
 
 The inbox distinguishes API acceptance from sent/delivered/read webhook statuses. Signed inbound IDs are deduplicated. SAIR, PARAR, STOP, and CANCELAR suppress outbound messages. An inbound inquiry alone never grants consent for campaigns.
 
-Failures pause the campaign without automatic retries. A timeout may mean Meta accepted a message without returning its ID. If the process stops after reservation, the job remains `processing` and blocks the account queue: verify the provider outcome before an operator reconciles the database. The UI flags uncertain jobs; a reconciliation UI is not included. Interrupted manual/greeting sends can likewise need review. Do not blindly recreate campaigns after a timeout.
+Failures pause the campaign without automatic retries. A timeout may mean Meta accepted a message without returning its ID. If the process stops after reservation, the job remains `processing` and blocks the account queue: verify the provider outcome before an operator reconciles the database. The UI flags uncertain jobs; a reconciliation UI is not included. Interrupted manual sends can likewise need review. Do not blindly recreate campaigns after a timeout.
 
-Webhooks persist inbound events before responding but await greeting delivery; move greetings to a separate durable reply queue for larger webhook volume. This pilot stores state in one transactional JSON row and returns the full dataset to the operator. Before sustained high-volume or multi-operator use, add normalized tables, paginated APIs, a dedicated queue, per-user access control, and retention rules. Real Meta delivery and a 5,000-recipient load test remain unverified without client credentials.
+Webhooks persist inbound messages and delivery updates without sending automatic replies. This pilot stores state in one transactional JSON row and returns the full dataset to the operator. Before sustained high-volume or multi-operator use, add normalized tables, paginated APIs, a dedicated queue, per-user access control, and retention rules. Real Meta delivery and a 5,000-recipient load test remain unverified without client credentials.
 
 Back up with SQLite's online backup API, or stop both processes before copying the databases. Do not copy only the `.sqlite` files during WAL writes. Both the application database and auth.sqlite use WAL. Protect backups because contacts and conversations contain personal data.
 
@@ -90,7 +90,7 @@ npm run build
 npm test
 ```
 
-The integration suite starts a local production server on port 3102 (override TEST_PORT), uses a fresh temporary SQLite directory, and forces simulation. It checks authentication, origin protection, imports, consent, concurrent reservation, personalization, service windows, signed and duplicate webhooks, greetings, opt-outs, queue completion, and send ceilings. It never modifies the normal app database. Temporary databases remain in the OS temp directory for inspection.
+The integration suite starts a local production server on port 3102 (override TEST_PORT), uses a fresh temporary SQLite directory, and forces simulation. It checks authentication, origin protection, imports, consent, concurrent reservation, personalization, service windows, signed and duplicate webhooks, absence of automatic replies, opt-outs, queue completion, and send ceilings. It never modifies the normal app database. Temporary databases remain in the OS temp directory for inspection.
 
 ## Individual outreach robot — WhatsApp Web / QR
 

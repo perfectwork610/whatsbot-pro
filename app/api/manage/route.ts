@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { audit, read, update, migrateLegacyOutreach } from '@/lib/store';
 import { graph, send, simulation } from '@/lib/whatsapp';
 import { randomInt } from 'node:crypto';
-import { greetingText } from '@/lib/greeting-text';
 import { removeContacts } from '@/lib/contact-removal';
 import { removeAccount } from '@/lib/account-removal';
 export const runtime = 'nodejs';
@@ -344,14 +343,6 @@ export async function POST(req: NextRequest) {
         };
         audit(s, 'Configurações do espaço de trabalho atualizadas.');
       });
-    } else if (b.action === 'settings') {
-      update((s) => {
-        s.settings = {
-          botEnabled: b.botEnabled === true,
-          greeting: required(b.greeting, 'Saudação', 2000),
-        };
-        audit(s, 'Configuração do atendimento atualizada.');
-      });
     } else if (b.action === 'reply') {
       const s = read();
       const c = s.contacts.find((c) => c.id === b.contactId);
@@ -459,17 +450,7 @@ export async function POST(req: NextRequest) {
           simulated: true,
           createdAt: new Date().toISOString(),
         });
-        if (s.settings.botEnabled && !c.optedOut && a.enabled !== false)
-          s.messages.push({
-            id: crypto.randomUUID(),
-            contactId: c.id,
-            accountId: a.id,
-            direction: 'out',
-            text: greetingText(s.settings.greeting, c.name, s.workspace?.name || 'WhatsBot Pro'),
-            status: 'simulated',
-            simulated: true,
-            createdAt: new Date().toISOString(),
-          });
+
       });
     } else throw new Error('Ação desconhecida.');
     return NextResponse.json({ ok: true, result });

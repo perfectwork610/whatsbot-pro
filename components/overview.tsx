@@ -102,7 +102,7 @@ export default function Overview({
   data: State & { simulation: boolean };
   navigate: (
     tab:
-      'Contatos' | 'Campanhas' | 'Conversas' | 'Contas WhatsApp' | 'Atendimento' | 'Configurações',
+      'Contatos' | 'Campanhas' | 'Conversas' | 'Contas WhatsApp' | 'Robô de envio' | 'Configurações',
   ) => void;
   onCampaign: () => void;
   onAddAccount: () => void;
@@ -193,11 +193,11 @@ export default function Overview({
       action: onCampaign,
     },
     {
-      title: 'Configurar automação',
-      description: 'Respostas automáticas e atendimento ao cliente.',
+      title: 'Robô de envio',
+      description: 'Conecte números por QR e envie mensagens individuais.',
       icon: Bot,
       tone: 'orange',
-      action: () => navigate('Atendimento'),
+      action: () => navigate('Robô de envio'),
     },
   ];
   function activityIcon(text: string): { icon: LucideIcon; tone: string } {

@@ -8,7 +8,6 @@ import {
   Settings,
   Smartphone,
   Users,
-  MessageCircle,
   Crown,
   ArrowRight,
 } from 'lucide-react';
@@ -21,7 +20,6 @@ export type WorkspaceTab =
   | 'Robô de envio'
   | 'Conversas'
   | 'Contas WhatsApp'
-  | 'Atendimento'
   | 'Relatórios'
   | 'Configurações';
 const groups = [
@@ -39,7 +37,6 @@ const groups = [
     label: 'CANAIS E ANÁLISES',
     items: [
       { name: 'Contas WhatsApp', icon: Smartphone },
-      { name: 'Atendimento', icon: MessageCircle },
       { name: 'Relatórios', icon: BarChart3 },
     ],
   },

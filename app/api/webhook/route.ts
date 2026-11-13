@@ -1,8 +1,6 @@
-import { greetingText } from '@/lib/greeting-text';
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { audit, read, update } from '@/lib/store';
-import { send, simulation } from '@/lib/whatsapp';
+import { audit, update } from '@/lib/store';
 export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams;
@@ -24,7 +22,6 @@ export async function POST(req: NextRequest) {
     return new NextResponse('Invalid signature', { status: 401 });
   try {
     const payload = JSON.parse(raw);
-    const replies: { id: string; contactId: string; accountId: string; text: string }[] = [];
     update((s) => {
       for (const entry of payload.entry || [])
         for (const change of entry.changes || []) {
@@ -81,13 +78,6 @@ export async function POST(req: NextRequest) {
               Number.isFinite(timestamp) && timestamp > 0
                 ? new Date(timestamp).toISOString()
                 : new Date().toISOString();
-            const firstInWindow = !s.messages.some(
-              (m) =>
-                m.direction === 'in' &&
-                m.contactId === contact!.id &&
-                m.accountId === account.id &&
-                Date.parse(createdAt) - Date.parse(m.createdAt) < 86400000,
-            );
             s.messages.push({
               id: crypto.randomUUID(),
               providerId: msg.id,
@@ -102,66 +92,10 @@ export async function POST(req: NextRequest) {
               contact.consent = false;
               contact.optedOut = true;
               audit(s, `Descadastro solicitado por ${contact.phone}.`);
-            } else if (
-              s.settings.botEnabled &&
-              account.enabled !== false &&
-              firstInWindow &&
-              !contact.optedOut &&
-              Date.now() - Date.parse(createdAt) < 86400000
-            ) {
-              const reply = {
-                id: crypto.randomUUID(),
-                contactId: contact.id,
-                accountId: account.id,
-                text: greetingText(
-                  s.settings.greeting,
-                  contact.name,
-                  s.workspace?.name || 'WhatsBot Pro',
-                ),
-              };
-              s.messages.push({
-                ...reply,
-                direction: 'out',
-                status: 'processing',
-                createdAt: new Date().toISOString(),
-                simulated: simulation(),
-              });
-              replies.push(reply);
             }
           }
         }
     });
-    for (const reply of replies) {
-      try {
-        const s = read();
-        const contact = s.contacts.find((c) => c.id === reply.contactId)!;
-        const account = s.accounts.find((a) => a.id === reply.accountId)!;
-        if (contact.optedOut) {
-          update((s) => {
-            s.messages.find((m) => m.id === reply.id)!.status = 'skipped';
-          });
-          continue;
-        }
-        const providerId = await send(account, contact.phone, {
-          type: 'text',
-          text: { body: reply.text },
-        });
-        update((s) => {
-          Object.assign(
-            s.messages.find((m) => m.id === reply.id)!,
-            { providerId, status: simulation() ? 'simulated' : 'accepted' },
-          );
-        });
-      } catch (e) {
-        update((s) => {
-          Object.assign(
-            s.messages.find((m) => m.id === reply.id)!,
-            { status: 'failed', error: String(e) },
-          );
-          audit(s, 'Falha na resposta automática; verificar conversa.');
-        });
-      }
-    }
     return NextResponse.json({ ok: true });
   } catch {
     return new NextResponse('Invalid event', { status: 400 });

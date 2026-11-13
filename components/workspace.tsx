@@ -35,7 +35,6 @@ import {
 import './workspace.css';
 import WorkspaceInbox from '@/components/workspace-inbox';
 import WorkspaceReports from '@/components/workspace-reports';
-import WorkspaceService from '@/components/workspace-service';
 import AccountForm from '@/components/account-form';
 import ContactImport from '@/components/contact-import';
 import OverviewToolbar from '@/components/overview-toolbar';
@@ -50,7 +49,6 @@ import './accounts-page.css';
 import SettingsPage from './settings-page';
 import './settings-page.css';
 import './reports-page.css';
-import './service-page.css';
 import './workspace-typography.css';
 import OutreachPage from './outreach-page';
 import './outreach-page.css';
@@ -66,7 +64,6 @@ type Tab =
   | 'Robô de envio'
   | 'Conversas'
   | 'Contas WhatsApp'
-  | 'Atendimento'
   | 'Relatórios'
   | 'Configurações';
 const field = 'workspace-input mt-1.5 w-full';
@@ -308,7 +305,7 @@ export default function Workspace() {
   );
   return (
     <div
-      className={`workspace min-h-screen ${tab === 'Visão geral' ? 'workspace--overview' : tab === 'Contatos' ? 'workspace--contacts' : tab === 'Campanhas' ? 'workspace--campaigns' : tab === 'Conversas' ? 'workspace--inbox' : tab === 'Contas WhatsApp' ? 'workspace--accounts' : tab === 'Configurações' ? 'workspace--settings' : tab === 'Relatórios' ? 'workspace--reports' : tab === 'Atendimento' ? 'workspace--service' : tab === 'Robô de envio' ? 'workspace--outreach' : ''}`}
+      className={`workspace min-h-screen ${tab === 'Visão geral' ? 'workspace--overview' : tab === 'Contatos' ? 'workspace--contacts' : tab === 'Campanhas' ? 'workspace--campaigns' : tab === 'Conversas' ? 'workspace--inbox' : tab === 'Contas WhatsApp' ? 'workspace--accounts' : tab === 'Configurações' ? 'workspace--settings' : tab === 'Relatórios' ? 'workspace--reports' : tab === 'Robô de envio' ? 'workspace--outreach' : ''}`}
     >
       <aside className="workspace-sidebar fixed inset-y-0 left-0 z-40 hidden w-64 flex-col text-white lg:flex">
         {nav}
@@ -353,7 +350,6 @@ export default function Workspace() {
           tab === 'Contas WhatsApp' ||
           tab === 'Configurações' ||
           tab === 'Relatórios' ||
-          tab === 'Atendimento' ||
           tab === 'Robô de envio' ? (
             <OverviewToolbar data={data} />
           ) : (
@@ -493,15 +489,6 @@ export default function Workspace() {
               setContactId={setContactId}
               onAction={act}
               busy={busy}
-            />
-          )}
-          {tab === 'Atendimento' && (
-            <WorkspaceService
-              settings={data.settings}
-              onAction={act}
-              busy={busy}
-              workspaceName={data.workspace?.name}
-              onNavigate={navigate}
             />
           )}
           {tab === 'Relatórios' && <WorkspaceReports data={data} />}

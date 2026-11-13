@@ -326,7 +326,11 @@ check(
 await action({ action: 'consent', id: c3.id, consent: false });
 await action({ action: 'reply', contactId: c1.id, accountId: account.id, text: 'No window' }, 400);
 check(true, 'free-form reply requires recent inbound message');
-await action({ action: 'settings', botEnabled: true, greeting: 'Integration greeting' });
+await action({ action: 'settings', botEnabled: true, greeting: 'Integration greeting' }, 400);
+// Old installations may still contain enabled greeting preferences. They must
+// never trigger a send after Customer Service has been removed.
+const { update: updateLegacyState } = await import('../lib/store.ts');
+updateLegacyState(s => { s.settings = { botEnabled: true, greeting: 'Integration greeting' }; });
 const inboundId = `wamid.test.${seed}`;
 const inbound = {
   entry: [
@@ -360,8 +364,8 @@ check(
   'webhook retries do not duplicate inbound messages',
 );
 check(
-  s.messages.filter((m) => m.contactId === c1.id && m.text === 'Integration greeting').length === 1,
-  'automatic greeting is sent once per window',
+  s.messages.filter((m) => m.contactId === c1.id && m.text === 'Integration greeting').length === 0,
+  'inbound messages never trigger automatic replies',
 );
 const sentId = s.messages.find((m) => m.campaignId === campaign.id).providerId;
 await webhook({
@@ -553,7 +557,7 @@ check(
 );
 
 await action({ action: 'account-update', id: a2.id, enabled: false });
-await action({ action: 'settings', botEnabled: true, greeting: 'Disabled account greeting' });
+await action({ action: 'settings', botEnabled: true, greeting: 'Disabled account greeting' }, 400);
 const beforeInactive = (await state()).messages.filter(
   (m) => m.accountId === a2.id && m.direction === 'out',
 ).length;
@@ -660,33 +664,9 @@ check(
   utcReport.campaigns[0].sent === 4 && utcReport.campaigns[0].failed === 1,
   'campaign performance matches filtered report messages',
 );
-const { greetingText } = await import('../lib/greeting-text.ts');
-check(
-  greetingText('Olá {{nome}}, {{empresa}} / {{name}} / {{business}}', 'Ana', 'Business') ===
-    'Olá Ana, Business / Ana / Business',
-  'automatic greeting variables work in Portuguese and English',
-);
-check(
-  greetingText('{{unknown}} {{name}}', 'A $& B', 'Business') === '{{unknown}} A $& B',
-  'unknown greeting variables stay literal and customer names are inserted safely',
-);
-await action({
-  action: 'settings',
-  botEnabled: true,
-  greeting: 'Hello {{name}} from {{business}}',
-});
-await action({
-  action: 'simulate-inbound',
-  accountId: a2.id,
-  contactId: c2.id,
-  text: 'Personalized greeting test',
-});
-check(
-  (await state()).messages
-    .filter((m) => m.accountId === a2.id && m.contactId === c2.id && m.direction === 'out')
-    .at(-1).text === 'Hello New number from Integration workspace',
-  'saved greeting variables personalize actual simulated replies',
-);
+const beforeSimulatedInbound = (await state()).messages.filter(m => m.direction === 'out').length;
+await action({ action: 'simulate-inbound', accountId: a2.id, contactId: c2.id, text: 'Manual inbox only' });
+check((await state()).messages.filter(m => m.direction === 'out').length === beforeSimulatedInbound, 'simulated inbound does not send replies even with legacy greeting enabled');
 async function outreachAction(body, expected = 200) {
   const response = await fetch(base + '/api/outreach', {
     method: 'POST',

@@ -1,5 +1,15 @@
 export type Locale = 'en' | 'pt-BR';
 export const english: Record<string, string> = {
+  'Conecte números por QR e envie mensagens individuais.': 'Link numbers by QR and send individual messages.',
+  'Detalhes dos destinatários': 'Recipient details',
+  'Contato removido': 'Removed contact',
+  'Todos os status': 'All statuses',
+  Detalhes: 'Details',
+  'Status do destinatário': 'Recipient status',
+  'Nenhum destinatário encontrado.': 'No recipients found.',
+  'Paginação dos destinatários': 'Recipient pagination',
+  'Aceita pela Meta': 'Accepted by Meta',
+  'Aceita pela Meta não significa entregue. A confirmação de entrega depende dos webhooks.': 'Accepted by Meta does not mean delivered. Delivery confirmation depends on webhooks.',
   'Falha no armazenamento de sessão do servidor. Verifique os logs da implantação.': 'Server session storage failed. Check the deployment logs.',
   'Este número já está na lista de contatos. Busque pelo telefone para editar o contato existente.': 'This number is already in your contacts. Search by phone number to edit the existing contact.',
   'Informe a origem e data do consentimento.': 'Enter the source and date of permission.',

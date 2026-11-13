@@ -25,6 +25,7 @@ import type { Campaign, State } from '@/lib/types';
 import { overviewData } from '@/lib/overview-data';
 import { useLanguage } from './language';
 import MessageActivity from './message-activity';
+import { campaignRecipients } from '@/lib/campaign-recipients';
 
 type Status = 'all' | 'running' | 'draft' | 'completed' | 'failed' | 'paused';
 export default function CampaignsPage({
@@ -55,6 +56,15 @@ export default function CampaignsPage({
   const [removing, setRemoving] = useState<Campaign | null>(null);
   const [removed, setRemoved] = useState<Campaign | null>(null);
   const [removeError, setRemoveError] = useState(false);
+  const [recipientFilter, setRecipientFilter] = useState('all');
+  const [recipientSearch, setRecipientSearch] = useState('');
+  const [recipientPage, setRecipientPage] = useState(0);
+  const recipients = useMemo(() => detail ? campaignRecipients(detail.id, data.jobs, data.contacts, data.messages) : [], [detail, data.jobs, data.contacts, data.messages]);
+  const recipientMatches = recipients.filter(r => (recipientFilter === 'all' || r.status === recipientFilter) &&
+    `${r.name || ''} ${r.phone || ''}`.toLowerCase().includes(recipientSearch.trim().toLowerCase()));
+  const recipientPages = Math.max(1, Math.ceil(recipientMatches.length / 50));
+  const currentRecipientPage = Math.min(recipientPage, recipientPages - 1);
+  const recipientLabels: Record<string, string> = { sent: 'Enviada', pending: 'Pendente', processing: 'Em processamento', failed: 'Falha', skipped: 'Ignorada', accepted: 'Aceita pela Meta', delivered: 'Entregue', read: 'Lida', simulated: 'Simulação' };
   const campaigns = data.campaigns.filter((c) => c.mode === 'bulk');
   const jobs = useMemo(() => {
     const map = new Map<string, State['jobs']>();
@@ -110,6 +120,9 @@ export default function CampaignsPage({
   const percent = (value: number) =>
     value.toLocaleString(locale, { maximumFractionDigits: 1 }) + '%';
   const showDetail = (c: Campaign) => {
+    setRecipientFilter('all');
+    setRecipientSearch('');
+    setRecipientPage(0);
     setDetail(c);
     dialog.current?.showModal();
   };
@@ -587,7 +600,7 @@ export default function CampaignsPage({
               {['sent', 'pending', 'processing', 'failed', 'skipped'].map((s) => (
                 <div key={s}>
                   <strong>
-                    {n((jobs.get(detail.id) || []).filter((j) => j.status === s).length)}
+                    {n(recipients.filter((j) => j.status === s).length)}
                   </strong>
                   <span>
                     {t(
@@ -608,6 +621,39 @@ export default function CampaignsPage({
             <p>
               {t('Intervalo por conta')}: {detail.delay}s
             </p>
+            <section className="campaigns-recipient-details" aria-label={t('Detalhes dos destinatários')}>
+              <h3>{t('Detalhes dos destinatários')}</h3>
+              <div className="campaigns-recipient-tools">
+                <input aria-label={t('Buscar nome ou telefone')} placeholder={t('Buscar nome ou telefone')}
+                  value={recipientSearch} onChange={e => { setRecipientSearch(e.target.value); setRecipientPage(0); }} />
+                <select aria-label={t('Status do destinatário')} value={recipientFilter}
+                  onChange={e => { setRecipientFilter(e.target.value); setRecipientPage(0); }}>
+                  <option value="all">{t('Todos os status')} ({n(recipients.length)})</option>
+                  {['sent', 'failed', 'pending', 'processing', 'skipped'].map(status =>
+                    <option key={status} value={status}>{t(recipientLabels[status])} ({n(recipients.filter(r => r.status === status).length)})</option>)}
+                </select>
+              </div>
+              <div className="campaigns-recipient-scroll">
+                <table>
+                  <thead><tr>{['Contato', 'Telefone', 'Status', 'Detalhes'].map(label => <th key={label}>{t(label)}</th>)}</tr></thead>
+                  <tbody>{recipientMatches.slice(currentRecipientPage * 50, (currentRecipientPage + 1) * 50).map(recipient =>
+                    <tr key={recipient.id}>
+                      <td>{recipient.name || t('Contato removido')}</td>
+                      <td className="campaigns-recipient-phone">{recipient.phone ? '+' + recipient.phone : '—'}</td>
+                      <td><span className={`campaigns-recipient-status is-${recipient.status}`}>{t(recipientLabels[recipient.status])}</span></td>
+                      <td className="campaigns-recipient-error">{recipient.error ? t(recipient.error) : recipient.delivery ? t(recipientLabels[recipient.delivery] || recipient.delivery) : '—'}</td>
+                    </tr>)}
+                  </tbody>
+                </table>
+                {!recipientMatches.length && <p>{t('Nenhum destinatário encontrado.')}</p>}
+              </div>
+              {recipientPages > 1 && <nav className="campaigns-recipient-pages" aria-label={t('Paginação dos destinatários')}>
+                <button disabled={!currentRecipientPage} onClick={() => setRecipientPage(currentRecipientPage - 1)}>{t('Anterior')}</button>
+                <span>{currentRecipientPage + 1} / {recipientPages}</span>
+                <button disabled={currentRecipientPage >= recipientPages - 1} onClick={() => setRecipientPage(currentRecipientPage + 1)}>{t('Próxima')}</button>
+              </nav>}
+              <p className="campaigns-detail-note">{t('Aceita pela Meta não significa entregue. A confirmação de entrega depende dos webhooks.')}</p>
+            </section>
             {(jobs.get(detail.id) || [])
               .filter((j) => j.error || j.status === 'processing')
               .map((j) => (

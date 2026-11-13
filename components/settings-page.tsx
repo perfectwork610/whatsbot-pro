@@ -5,7 +5,6 @@ import {
   Settings,
   MessageCircle,
   Users,
-  Bot,
   ClipboardList,
   Bell,
   CreditCard,
@@ -55,7 +54,6 @@ export default function SettingsPage({
     { value: 'general', label: 'Geral', icon: Settings },
     { value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
     { value: 'team', label: 'Equipe', icon: Users },
-    { value: 'automation', label: 'Automação', icon: Bot },
     { value: 'templates', label: 'Modelos', icon: ClipboardList },
     { value: 'notifications', label: 'Notificações', icon: Bell },
     { value: 'billing', label: 'Faturamento', icon: CreditCard },
@@ -307,27 +305,6 @@ export default function SettingsPage({
                 <p>{t('As credenciais e o modo de envio são configurados no servidor.')}</p>
                 <p>{t('O worker precisa estar em execução para processar campanhas.')}</p>
               </div>
-            </>
-          ) : tab === 'automation' ? (
-            <>
-              {sectionHeading('Automação', 'Configure a resposta automática e o atendimento.', Bot)}
-              <div className="settings-info-block">
-                <Bot />
-                <div>
-                  <strong>
-                    {t(
-                      data.settings.botEnabled
-                        ? 'Saudação automática ativa'
-                        : 'Saudação automática desativada',
-                    )}
-                  </strong>
-                  <p>{data.settings.greeting}</p>
-                </div>
-              </div>
-              <button className="settings-save" onClick={() => onNavigate('Atendimento')}>
-                {t('Configurar atendimento')}
-                <ArrowRight size={17} />
-              </button>
             </>
           ) : tab === 'templates' ? (
             <>
