@@ -71,6 +71,32 @@ export async function POST(req: NextRequest) {
         audit(s, `Importação: ${added} novos, ${duplicates} duplicados, ${invalid} inválidos.`);
         return { added, duplicates, invalid };
       });
+    } else if (b.action === 'contact-create') {
+      const name = required(b.name, 'Nome');
+      const phone = required(b.phone, 'Telefone').replace(/[\s()+.\-]/g, '');
+      if (!/^[1-9]\d{7,14}$/.test(phone))
+        throw new Error('Informe um telefone internacional válido com código do país.');
+      const source = text(b.source, 500);
+      if (b.consent === true && !source)
+        throw new Error('Informe a origem e data do consentimento.');
+      result = update((s) => {
+        const existing = s.contacts.find(c => c.phone === phone);
+        if (existing && !existing.deletedAt)
+          throw new Error('Este número já está na lista de contatos. Busque pelo telefone para editar o contato existente.');
+        if (existing) {
+          existing.deletedAt = undefined;
+          existing.name = name;
+          // Restore identity/history without undoing suppression or canceled jobs.
+          existing.consent = false;
+          audit(s, 'Contato removido restaurado pelo cadastro manual.');
+          return { restored: true, id: existing.id };
+        }
+        const id = crypto.randomUUID();
+        s.contacts.push({ id, name, phone, source, consent: b.consent === true && !!source,
+          optedOut: false, createdAt: new Date().toISOString() });
+        audit(s, 'Contato cadastrado manualmente.');
+        return { restored: false, id };
+      });
     } else if (b.action === 'contacts-remove' || b.action === 'contacts-restore') {
       result = update((s) => {
         const result = removeContacts(s, b.ids, b.action === 'contacts-restore');

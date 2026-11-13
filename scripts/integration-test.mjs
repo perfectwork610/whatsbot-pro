@@ -814,6 +814,14 @@ check((await state()).contacts.some(c => c.id === c1.id), 'invalid bulk removal 
 await action({ action: 'contacts-remove', ids: [c1.id, webContact.id] });
 const afterContactRemoval = await state();
 check(!afterContactRemoval.contacts.some(c => [c1.id, webContact.id].includes(c.id)), 'bulk removal hides selected contacts');
+await action({ action: 'contact-create', name: 'Restored Web contact', phone: webContact.phone, consent: true, source: 'Manual restoration test' });
+const restoredManual = (await state()).contacts.find(c => c.phone === webContact.phone);
+check(restoredManual?.id === webContact.id && !restoredManual.consent, 'manual add restores removed identity without reauthorizing sends');
+await action({ action: 'contact-create', name: 'Duplicate', phone: webContact.phone }, 400);
+check((await state()).contacts.filter(c => c.phone === webContact.phone).length === 1, 'manual add rejects visible duplicates without creating another contact');
+await action({ action: 'contact-create', name: 'Manual new contact', phone: '12025550999', consent: true, source: 'Test signup' });
+check((await state()).contacts.some(c => c.phone === '12025550999' && c.name === 'Manual new contact' && c.consent), 'manual add creates a new contact with recorded permission');
+await action({ action: 'contact-create', name: 'Invalid permission', phone: '12025550998', consent: true }, 400);
 await action({ action: 'contacts-restore', ids: [c1.id, webContact.id] });
 check((await state()).contacts.filter(c => [c1.id, webContact.id].includes(c.id)).every(c => !c.consent), 'contact undo does not restore sending permission');
 const csrfLogout = await fetch(base + '/api/auth/logout', {

@@ -194,7 +194,9 @@ export default function Workspace() {
       if (!r.ok) throw new Error(body.error);
       await refresh();
       setNotice(
-        body.result?.added !== undefined
+        body.result?.restored === true
+          ? 'Contato restaurado. Registre a permissão antes de enviar novamente.'
+          : body.result?.added !== undefined
           ? `${body.result.added} importados · ${body.result.duplicates} duplicados · ${body.result.invalid} inválidos`
           : message,
       );
@@ -591,7 +593,7 @@ export default function Workspace() {
                 onSubmit={(e) => {
                   const v = values(e);
                   void act(
-                    { action: 'contacts', rows: [{ ...v, consent: v.consent === 'on' }] },
+                    { action: 'contact-create', ...v, consent: v.consent === 'on' },
                     'Contato salvo.',
                     true,
                   );
