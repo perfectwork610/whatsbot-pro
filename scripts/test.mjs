@@ -8,7 +8,7 @@ const server=spawn(process.execPath,['node_modules/next/dist/bin/next','start','
 let output='';server.stdout.on('data',c=>output+=c);server.stderr.on('data',c=>output+=c);
 try {
   let ready=false;
-  for(let i=0;i<100;i++) { try{const r=await fetch(url);if(r.status===401){ready=true;break;}}catch{} if(server.exitCode!==null) throw new Error(output);await new Promise(r=>setTimeout(r,200)); }
+  for(let i=0;i<100;i++) { try{const r=await fetch(url+'/login');if(r.status===200){ready=true;break;}}catch{} if(server.exitCode!==null) throw new Error(output);await new Promise(r=>setTimeout(r,200)); }
   if(!ready)throw new Error(`Test server did not become ready. ${output}`);
   const test=spawn(process.execPath,['scripts/integration-test.mjs'],{env,stdio:'inherit'});
   process.exitCode=await new Promise(resolve=>test.on('exit',code=>resolve(code??1)));

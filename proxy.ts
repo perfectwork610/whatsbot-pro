@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { timingSafeEqual } from 'node:crypto';
+import { SESSION_COOKIE, validSession } from '@/lib/auth';
 export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  if (pathname === '/api/webhook' || pathname === '/api/worker') return NextResponse.next();
-  const password = process.env.ADMIN_PASSWORD;
-  if (!password) {
-    if (process.env.NODE_ENV === 'production') return new NextResponse('Configure ADMIN_PASSWORD before starting production.', { status: 503 });
-    return NextResponse.next();
-  }
-  const auth = request.headers.get('authorization') || '';
-  let supplied = '';
-  try { supplied = Buffer.from(auth.replace(/^Basic /, ''), 'base64').toString(); } catch { /* unauthorized */ }
-  const expected = Buffer.from(`admin:${password}`); const actual = Buffer.from(supplied);
-  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return new NextResponse('Autenticação necessária', { status: 401, headers: { 'WWW-Authenticate': 'Basic realm="WhatsBot Pro", charset="UTF-8"' } });
-  return NextResponse.next();
+  if (['/api/webhook','/api/worker','/api/auth/login','/api/auth/logout','/images/login-hero.webp'].includes(pathname)) return NextResponse.next();
+  const authenticated = validSession(request.cookies.get(SESSION_COOKIE)?.value);
+  let response: NextResponse;
+  if (pathname === '/login') response = authenticated ? NextResponse.redirect(new URL('/',request.url)) : NextResponse.next();
+  else if (!authenticated) response = pathname.startsWith('/api/') ? NextResponse.json({error:'Sessão expirada. Entre novamente.'},{status:401}) : NextResponse.redirect(new URL('/login',request.url));
+  else response = NextResponse.next();
+  response.headers.set('Cache-Control','private, no-store');
+  return response;
 }
 export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] };

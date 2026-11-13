@@ -24,6 +24,14 @@ The worker operates independently of the browser. Set APP_URL to the exact brows
 
 Use the **English / Português** selector in the top bar. The app uses the browser language on the first visit and remembers your selection on that browser. Navigation, forms, statuses, application notifications/errors, operation history, dates, numbers, and CSV column names follow the selection. Both English and Portuguese CSV headers can be imported in either interface language. Changing the interface language does not translate or modify customer messages, campaign content, saved greetings, account names, or approved template language codes.
 
+## Login and logout
+
+Unauthenticated visits go to `/login`, available in English and Portuguese. Use username **admin** and ADMIN_PASSWORD from `.env.local`. The browser's native Basic Authentication popup is no longer used. The **Log out / Sair** button in the dashboard header revokes the server session and returns to the login page; remembered Basic credentials cannot bypass it.
+
+Sessions expire after 12 hours and use opaque random tokens in HttpOnly, SameSite=Lax cookies. Only token hashes are stored in `data/auth.sqlite` (or DATA_DIR). Cookies use Secure when APP_URL is HTTPS; HTTP loopback development remains supported. Ten failed login attempts temporarily block administrator login for five minutes. This is a single-administrator limit. Both login and logout reject cross-origin writes. Changing ADMIN_PASSWORD and restarting invalidates existing sessions. ADMIN_PASSWORD is required in development and production. Login does not stop the independent campaign worker, and logging out leaves running campaigns active.
+
+The login page follows the supplied emerald/white design, with responsive layouts and bilingual HTML text. Remember me retains the session cookie for 12 hours; unchecking it uses a browser-session cookie (still limited to 12 hours on the server). Social login is not displayed; recovery and contact actions provide administrator guidance. See [login design notes](docs/login-design.md) for artwork provenance and implementation scope.
+
 ## Test the workflow
 
 1. **Contas WhatsApp**: add a test account with numeric Phone Number ID and WABA ID (e.g. 12345 and 67890), token variable `WA_TOKEN_PRIMARY`, and a local daily ceiling. Simulation supplies `hello_world` / `en_US` without needing a real token.
@@ -58,7 +66,7 @@ npm run start
 npm run worker
 ```
 
-Deploy as a **single persistent Node.js instance** with durable local disk, an HTTPS reverse proxy, and a process supervisor. This is a single-operator pilot, not a multi-tenant SaaS. HTTP Basic authentication protects the dashboard and management API; production refuses dashboard access without ADMIN_PASSWORD. Use HTTPS. Worker requests require a separate WORKER_SECRET. Webhook authentication uses the Meta app secret. Management writes validate the browser origin. Do not expose development mode publicly.
+Deploy as a **single persistent Node.js instance** with durable local disk, an HTTPS reverse proxy, and a process supervisor. This is a single-operator pilot, not a multi-tenant SaaS. Server-side sessions protect the dashboard and management API; ADMIN_PASSWORD must be configured. Use HTTPS and set APP_URL to the public HTTPS origin. Worker requests require a separate WORKER_SECRET. Webhook authentication uses the Meta app secret. Management writes validate the browser origin. Do not expose development mode publicly.
 
 SQLite is stored in `data/whatsbot.sqlite`, overridable with DATA_DIR. Transactions reserve work before the external send. Concurrent worker requests cannot reserve the same job. The queue enforces an interval shared by campaigns on each account and a rolling 24-hour local ceiling. Permission is checked again immediately before dispatch. Manual service replies and greetings require a recent inbound message on that account.
 
@@ -68,7 +76,7 @@ Failures pause the campaign without automatic retries. A timeout may mean Meta a
 
 Webhooks persist inbound events before responding but await greeting delivery; move greetings to a separate durable reply queue for larger webhook volume. This pilot stores state in one transactional JSON row and returns the full dataset to the operator. Before sustained high-volume or multi-operator use, add normalized tables, paginated APIs, a dedicated queue, per-user access control, and retention rules. Real Meta delivery and a 5,000-recipient load test remain unverified without client credentials.
 
-Back up with SQLite's online backup API, or stop both processes before copying the database. Do not copy only the `.sqlite` file during WAL writes. Protect backups because contacts and conversations contain personal data.
+Back up with SQLite's online backup API, or stop both processes before copying the databases. Do not copy only the `.sqlite` files during WAL writes. Both the application database and auth.sqlite use WAL. Protect backups because contacts and conversations contain personal data.
 
 ## Verification
 

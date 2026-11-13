@@ -4,18 +4,39 @@ const base = process.env.TEST_URL || 'http://127.0.0.1:3101';
 const password = process.env.TEST_ADMIN_PASSWORD || 'integration-admin-password';
 const workerSecret = process.env.TEST_WORKER_SECRET || 'integration-worker-secret';
 const appSecret = process.env.TEST_APP_SECRET || 'integration-app-secret';
-const auth = `Basic ${Buffer.from(`admin:${password}`).toString('base64')}`;
+let auth = '';
+const legacyAuth = `Basic ${Buffer.from(`admin:${password}`).toString('base64')}`;
 let checks = 0;
 function check(condition, label) { assert.ok(condition,label); checks++; console.log(`PASS ${label}`); }
-async function state() { const r=await fetch(`${base}/api/manage`,{headers:{Authorization:auth}});assert.equal(r.status,200);return r.json(); }
-async function action(body,expected=200) { const r=await fetch(`${base}/api/manage`,{method:'POST',headers:{Authorization:auth,Origin:base,'Content-Type':'application/json'},body:JSON.stringify(body)});assert.equal(r.status,expected,await r.clone().text());return r.json(); }
+async function state() { const r=await fetch(`${base}/api/manage`,{headers:{Cookie:auth}});assert.equal(r.status,200);return r.json(); }
+async function action(body,expected=200) { const r=await fetch(`${base}/api/manage`,{method:'POST',headers:{Cookie:auth,Origin:base,'Content-Type':'application/json'},body:JSON.stringify(body)});assert.equal(r.status,expected,await r.clone().text());return r.json(); }
 async function tick() { const r=await fetch(`${base}/api/worker`,{method:'POST',headers:{Authorization:`Bearer ${workerSecret}`}});assert.equal(r.status,200);return r.json(); }
 async function webhook(body,signed=true) { const raw=JSON.stringify(body);const r=await fetch(`${base}/api/webhook`,{method:'POST',headers:{'Content-Type':'application/json',...(signed?{'x-hub-signature-256':`sha256=${createHmac('sha256',appSecret).update(raw).digest('hex')}`}:{})},body:raw});return r; }
+const anonymous=await fetch(base,{redirect:'manual'});
+check(anonymous.status===307&&anonymous.headers.get('location').endsWith('/login'),'anonymous dashboard redirects to login page');
+check(!anonymous.headers.has('www-authenticate'),'browser Basic Auth popup is no longer requested');
+check((await fetch(base+'/login')).status===200,'login page is publicly accessible');
+const art=await fetch(base+'/images/login-hero.webp');
+check(art.status===200&&art.headers.get('content-type').includes('image/webp'),'login artwork is publicly accessible without a session');
+check((await fetch(base+'/api/manage',{headers:{Authorization:legacyAuth}})).status===401,'old browser Basic credentials cannot bypass login');
+async function login(body,origin=base){return fetch(base+'/api/auth/login',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify(body)});}
+const temporaryLogin=await login({username:'admin',password,remember:false});
+check(temporaryLogin.status===200&&!temporaryLogin.headers.get('set-cookie').includes('Max-Age='),'remember-me unchecked uses a browser-session cookie');
+await fetch(base+'/api/auth/logout',{method:'POST',headers:{Cookie:temporaryLogin.headers.get('set-cookie').split(';')[0],Origin:base}});
+check((await login({username:'admin',password},'https://evil.example')).status===403,'cross-origin login rejected');
+check((await login({username:'admin',password:'incorrect'})).status===401,'incorrect password rejected');
+check((await login({username:'someone',password})).status===401,'incorrect username rejected');
+const signedIn=await login({username:'admin',password});const cookie=signedIn.headers.get('set-cookie');
+check(signedIn.status===200&&cookie?.includes('HttpOnly')&&cookie?.includes('SameSite=lax')&&cookie?.includes('Max-Age=43200'),'login sets protected twelve-hour session cookie');
+auth=cookie.split(';')[0];
+check((await fetch(base,{headers:{Cookie:auth}})).status===200,'session grants dashboard access');
+check((await fetch(base+'/login',{headers:{Cookie:auth},redirect:'manual'})).status===307,'signed-in visitor is redirected away from login');
+check((await fetch(base+'/api/manage',{headers:{Cookie:auth.slice(0,-1)+'z'}})).status===401,'tampered session rejected');
 const s0=await state();
 check(s0.simulation,'test server is simulation-only');
 check((await fetch(`${base}/api/manage`)).status===401,'dashboard API requires authentication');
 check((await fetch(`${base}/api/worker`,{method:'POST'})).status===401,'worker requires separate secret');
-check((await fetch(`${base}/api/manage`,{method:'POST',headers:{Authorization:auth,Origin:'https://evil.example','Content-Type':'application/json'},body:'{}'})).status===403,'cross-origin writes rejected');
+check((await fetch(`${base}/api/manage`,{method:'POST',headers:{Cookie:auth,Origin:'https://evil.example','Content-Type':'application/json'},body:'{}'})).status===403,'cross-origin writes rejected');
 const seed=String(Date.now()).slice(-9);const phone1=`5511${seed}1`;const phone2=`5511${seed}2`;const phone3=`5511${seed}3`;
 const result=await action({action:'contacts',rows:[{name:'Test Authorized',phone:phone1,consent:true,source:'Integration opt-in'},{name:'Test No Proof',phone:phone2,consent:true,source:''},{name:'Test Unsubscribe',phone:phone3,consent:true,source:'Integration opt-in'},{phone:'invalid'},{phone:phone1}]});
 check(result.result.added===3&&result.result.invalid===1&&result.result.duplicates===1,'import validates and deduplicates phone numbers');
@@ -68,4 +89,18 @@ await action({action:'campaign',name:`Suppression ${seed}`,accountId:a2.id,templ
 await action({action:'campaign-status',id:c4.id,status:'running'});await action({action:'consent',id:c3.id,consent:false});await tick();s=await state();
 check(s.jobs.find(j=>j.campaignId===c4.id).status==='skipped','queued recipient is rechecked after unsubscribe');
 await tick();check((await state()).campaigns.find(c=>c.id===c4.id).status==='completed','queue completes after suppressed jobs are processed');
-console.log(`\n${checks} integration checks passed.`);
+const csrfLogout=await fetch(base+'/api/auth/logout',{method:'POST',headers:{Cookie:auth,Origin:'https://evil.example'}});
+check(csrfLogout.status===403,'cross-origin logout rejected');
+check((await fetch(base+'/api/manage',{headers:{Cookie:auth}})).status===200,'rejected logout leaves session valid');
+const loggedOut=await fetch(base+'/api/auth/logout',{method:'POST',headers:{Cookie:auth,Origin:base}});
+check(loggedOut.status===200&&loggedOut.headers.get('set-cookie').includes('Max-Age=0'),'logout clears browser cookie');
+check((await fetch(base+'/api/manage',{headers:{Cookie:auth}})).status===401,'logout revokes the old token on the server');
+check((await fetch(base,{headers:{Cookie:auth},redirect:'manual'})).status===307,'logged-out visitor must sign in again');
+const second=await login({username:'admin',password});auth=second.headers.get('set-cookie').split(';')[0];
+check(second.status===200,'user can sign in again after logout');
+const {DatabaseSync}=await import('node:sqlite');const {default:path}=await import('node:path');
+const database=new DatabaseSync(path.join(process.env.DATA_DIR,'auth.sqlite'));database.prepare('UPDATE sessions SET expires_at=0').run();database.close();
+check((await fetch(base+'/api/manage',{headers:{Cookie:auth}})).status===401,'expired server session rejected');
+for(let i=0;i<10;i++)await login({username:'admin',password:'incorrect'});
+check((await login({username:'admin',password})).status===429,'repeated login failures temporarily rate limited');
+console.log('\n'+checks+' integration checks passed.');
