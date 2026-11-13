@@ -18,6 +18,7 @@ import {
   FlaskConical,
   Link2Off,
   FileText,
+  Trash2,
 } from 'lucide-react';
 import type { Account, State } from '@/lib/types';
 import { useLanguage } from './language';
@@ -45,6 +46,16 @@ export default function AccountsPage({
     [panel, setPanel] = useState('settings'),
     [saveError, setSaveError] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
+  const deleteDialog = useRef<HTMLDialogElement>(null);
+  const [deleting, setDeleting] = useState<AccountData | null>(null);
+  const [deleted, setDeleted] = useState<AccountData | null>(null);
+  const [deleteError, setDeleteError] = useState(false);
+  function confirmDelete(account: AccountData) {
+    setDeleting(account);
+    setDeleteError(false);
+    setMenu(null);
+    deleteDialog.current?.showModal();
+  }
   useEffect(() => {
     if (!menu) return;
     const outside = (e: PointerEvent) => {
@@ -134,6 +145,12 @@ export default function AccountsPage({
           {t('Adicionar conta')}
         </button>
       </header>
+      {deleted && <div className="accounts-deleted" role="status">
+        <span>{t('Conta excluída')}: <strong>{deleted.name}</strong></span>
+        <button disabled={busy} onClick={async () => {
+          if (await onAction({ action: 'account-restore', id: deleted.id }, 'Conta restaurada como inativa.')) setDeleted(null);
+        }}>{t('Desfazer')}</button>
+      </div>}
       <div className="accounts-stats">
         {[
           {
@@ -266,6 +283,9 @@ export default function AccountsPage({
                       <button role="menuitem" onClick={() => open(a, 'templates')}>
                         {t('Modelos da conta')}
                       </button>
+                      <button className="accounts-delete" role="menuitem" disabled={busy} onClick={() => confirmDelete(a)}>
+                        {t('Excluir conta')}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -337,6 +357,9 @@ export default function AccountsPage({
                   <Settings size={18} />
                   {t('Configurações')}
                 </button>
+                <button className="accounts-delete" disabled={busy} aria-label={`${t('Excluir conta')}: ${a.name}`} onClick={() => confirmDelete(a)}>
+                  <Trash2 size={18} />{t('Excluir')}
+                </button>
               </footer>
             </article>
           );
@@ -352,6 +375,27 @@ export default function AccountsPage({
           </button>
         </div>
       )}
+      <DismissibleDialog ref={deleteDialog} className="accounts-settings accounts-delete-dialog" aria-labelledby="account-delete-title">
+        <header>
+          <h2 id="account-delete-title">{t('Excluir conta')}?</h2>
+          <button disabled={busy} aria-label={t('Cancelar')} onClick={() => deleteDialog.current?.close()}><X size={20} /></button>
+        </header>
+        <strong>{deleting?.name}</strong>
+        <p>{t('A conta será removida deste aplicativo e suas campanhas em execução serão pausadas. O histórico de mensagens será preservado.')}</p>
+        <p>{t('Isso não exclui sua conta no WhatsApp ou na Meta. Ao desfazer, a conta permanece inativa.')}</p>
+        {deleteError && <p role="alert">{t('Não foi possível excluir. Aguarde o envio atual terminar e tente novamente.')}</p>}
+        <footer>
+          <button disabled={busy} onClick={() => deleteDialog.current?.close()}>{t('Cancelar')}</button>
+          <button className="accounts-delete-confirm" disabled={busy} onClick={async () => {
+            if (!deleting) return;
+            setDeleteError(false);
+            if (await onAction({ action: 'account-delete', id: deleting.id }, 'Conta excluída. Campanhas em execução foram pausadas.')) {
+              setDeleted(deleting);
+              deleteDialog.current?.close();
+            } else setDeleteError(true);
+          }}><Trash2 size={16} />{t('Excluir conta')}</button>
+        </footer>
+      </DismissibleDialog>
       <DismissibleDialog
         ref={dialog}
         className="accounts-settings"

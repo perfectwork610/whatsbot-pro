@@ -802,6 +802,13 @@ check(
 );
 await action({ action: 'campaign', mode: 'sequential' }, 400);
 check(true, 'legacy sequential creation no longer duplicates bulk campaigns');
+await action({action: 'account', name: 'Deletion test account', testAccount: true, dailyLimit: 20});
+const removableAccount = (await state()).accounts.find(a => a.name === 'Deletion test account');
+await action({action: 'account-delete', id: removableAccount.id});
+check(!(await state()).accounts.some(a => a.id === removableAccount.id), 'deleted WhatsApp account is hidden');
+await action({action: 'account-update', id: removableAccount.id, enabled: true}, 400);
+await action({action: 'account-restore', id: removableAccount.id});
+check((await state()).accounts.find(a => a.id === removableAccount.id)?.enabled === false, 'account Undo restores an inactive account');
 await action({ action: 'contacts-remove', ids: [c1.id, 'missing-contact'] }, 400);
 check((await state()).contacts.some(c => c.id === c1.id), 'invalid bulk removal leaves contacts unchanged');
 await action({ action: 'contacts-remove', ids: [c1.id, webContact.id] });

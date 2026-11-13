@@ -1,5 +1,13 @@
 export type Locale = 'en' | 'pt-BR';
 export const english: Record<string, string> = {
+  'Excluir conta': 'Delete account',
+  'Conta excluída': 'Account deleted',
+  'Conta excluída. Campanhas em execução foram pausadas.': 'Account deleted. Running campaigns were paused.',
+  'Conta restaurada como inativa.': 'Account restored as inactive.',
+  'Aguarde o envio atual terminar antes de excluir esta conta.': 'Wait for the current send to finish before deleting this account.',
+  'A conta será removida deste aplicativo e suas campanhas em execução serão pausadas. O histórico de mensagens será preservado.': 'The account will be removed from this app and its running campaigns will be paused. Message history will be preserved.',
+  'Isso não exclui sua conta no WhatsApp ou na Meta. Ao desfazer, a conta permanece inativa.': 'This does not delete your account on WhatsApp or Meta. After Undo, the account remains inactive.',
+  'Não foi possível excluir. Aguarde o envio atual terminar e tente novamente.': 'Could not delete the account. Wait for the current send to finish and try again.',
   'Selecionar todos os contatos': 'Select all contacts',
   'Em todas as páginas, respeitando os filtros atuais.': 'Across all pages, matching the current filters.',
   Remover: 'Remove',

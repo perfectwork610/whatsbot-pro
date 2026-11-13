@@ -21,7 +21,7 @@ export async function graph(account: Account, endpoint: string, body?: unknown) 
   return data;
 }
 export async function send(account: Account, phone: string, payload: object): Promise<string> {
-  if (account.enabled === false)
+  if (account.deletedAt || account.enabled === false)
     throw new Error('Esta conta está inativa. Ative a conta para enviar mensagens.');
   if (simulation()) return `sim_${crypto.randomUUID()}`;
   const data = await graph(account, `${account.phoneId}/messages`, {

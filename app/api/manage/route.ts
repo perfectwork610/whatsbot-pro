@@ -4,6 +4,7 @@ import { graph, send, simulation } from '@/lib/whatsapp';
 import { randomInt } from 'node:crypto';
 import { greetingText } from '@/lib/greeting-text';
 import { removeContacts } from '@/lib/contact-removal';
+import { removeAccount } from '@/lib/account-removal';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 const text = (v: unknown, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -20,7 +21,7 @@ export async function GET() {
       ...s,
       contacts: s.contacts.filter((c) => !c.deletedAt),
       campaigns: s.campaigns.filter((c) => !c.deletedAt),
-      accounts: s.accounts.map((a) => ({ ...a, configured: !!process.env[a.tokenEnv] })),
+      accounts: s.accounts.filter(a => !a.deletedAt).map((a) => ({ ...a, configured: !!process.env[a.tokenEnv] })),
       simulation: simulation(),
     },
     { headers: { 'Cache-Control': 'no-store' } },
@@ -161,10 +162,15 @@ export async function POST(req: NextRequest) {
         });
         audit(s, `Conta ${name} cadastrada.`);
       });
+    } else if (b.action === 'account-delete' || b.action === 'account-restore') {
+      update((s) => {
+        removeAccount(s, b.id, b.action === 'account-restore');
+        audit(s, b.action === 'account-delete' ? 'Conta WhatsApp excluída.' : 'Conta WhatsApp restaurada como inativa.');
+      });
     } else if (b.action === 'account-update') {
       update((s) => {
         const account = s.accounts.find((a) => a.id === b.id);
-        if (!account) throw new Error('Conta inexistente.');
+        if (!account || account.deletedAt) throw new Error('Conta inexistente.');
         if (b.name !== undefined) account.name = required(b.name, 'Nome');
         if (b.dailyLimit !== undefined) {
           const limit = Number(b.dailyLimit);
@@ -192,7 +198,7 @@ export async function POST(req: NextRequest) {
       });
     } else if (b.action === 'sync') {
       const account = read().accounts.find((a) => a.id === b.id);
-      if (!account) throw new Error('Conta inexistente.');
+      if (!account || account.deletedAt) throw new Error('Conta inexistente.');
       if (simulation())
         throw new Error('Sincronização disponível no modo live. Simulação inclui hello_world.');
       const data = await graph(
@@ -218,7 +224,7 @@ export async function POST(req: NextRequest) {
         throw new Error('Intervalo deve ser entre 5 e 86.400 segundos.');
       update((s) => {
         const a = s.accounts.find((a) => a.id === b.accountId);
-        if (!a) throw new Error('Escolha uma conta.');
+        if (!a || a.deletedAt) throw new Error('Escolha uma conta.');
         if (a.simulationOnly && !simulation())
           throw new Error(
             'Esta conta é apenas de teste. Conecte uma conta oficial para envios reais.',

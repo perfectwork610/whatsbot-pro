@@ -11,6 +11,7 @@ export type Contact = {
   createdAt: string;
 };
 export type Account = {
+  deletedAt?: string;
   enabled?: boolean;
   id: string;
   name: string;
