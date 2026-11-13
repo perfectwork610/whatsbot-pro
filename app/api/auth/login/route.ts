@@ -10,7 +10,13 @@ export async function POST(request: NextRequest) {
     const raw = await request.text();
     if (raw.length > 4096)
       return NextResponse.json({ error: 'Dados de acesso inválidos.' }, { status: 400 });
-    const body = JSON.parse(raw);
+    let body;
+    try {
+      body = JSON.parse(raw);
+      if (!body || typeof body !== 'object') throw new Error('Invalid input');
+    } catch {
+      return NextResponse.json({ error: 'Dados de acesso inválidos.' }, { status: 400 });
+    }
     const result = authenticate(body.username, body.password);
     if (result !== 'ok') {
       const status = result === 'limited' ? 429 : result === 'unconfigured' ? 503 : 401;
@@ -40,7 +46,13 @@ export async function POST(request: NextRequest) {
       ...(body.remember === false ? {} : { maxAge: SESSION_SECONDS }),
     });
     return response;
-  } catch {
-    return NextResponse.json({ error: 'Dados de acesso inválidos.' }, { status: 400 });
+  } catch (error) {
+    // Configuration/storage failures are not bad credentials. Keep diagnostic
+    // details in server logs and never log the submitted username/password.
+    console.error('Sign-in session storage failure:', error);
+    return NextResponse.json(
+      { error: 'Falha no armazenamento de sessão do servidor. Verifique os logs da implantação.' },
+      { status: 500, headers: { 'Cache-Control': 'no-store' } },
+    );
   }
 }

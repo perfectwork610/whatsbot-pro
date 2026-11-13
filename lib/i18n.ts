@@ -1,5 +1,6 @@
 export type Locale = 'en' | 'pt-BR';
 export const english: Record<string, string> = {
+  'Falha no armazenamento de sessão do servidor. Verifique os logs da implantação.': 'Server session storage failed. Check the deployment logs.',
   'Este número já está na lista de contatos. Busque pelo telefone para editar o contato existente.': 'This number is already in your contacts. Search by phone number to edit the existing contact.',
   'Informe a origem e data do consentimento.': 'Enter the source and date of permission.',
   'Contato restaurado. Registre a permissão antes de enviar novamente.': 'Contact restored. Record permission before sending again.',
