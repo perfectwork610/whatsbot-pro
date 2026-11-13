@@ -14,4 +14,4 @@ Final generation prompt:
 
 ## Official WhatsApp icon
 
-The custom-drawn mark was replaced with the exact SVG path geometry served as the favicon on [WhatsApp’s official website](https://www.whatsapp.com/): https://static.whatsapp.net/rsrc.php/y1/r/FJbTMJqMap7.svg. The downloaded SVG is retained in `artifacts/whatsapp-official.svg`. The same vector geometry is used in the header, form, recovery dialog, and over the phone illustration.
+The custom-drawn mark was replaced with the exact SVG path geometry served as the favicon on [WhatsApp’s official website](https://www.whatsapp.com/): https://static.whatsapp.net/rsrc.php/y1/r/FJbTMJqMap7.svg. The vector paths are included directly in `components/whatsapp-mark.tsx`; no separate SVG image file is needed. The same vector geometry is used in the header, form, recovery dialog, and over the phone illustration.

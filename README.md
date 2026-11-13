@@ -37,14 +37,14 @@ The login page follows the supplied emerald/white design, with responsive layout
 ## Test the workflow
 
 1. **Contas WhatsApp**: click **Add account**, enter a name, optionally add a phone number as a label, and click **Create test account**. Simulation generates test identifiers and supplies `hello_world` / `en_US` automatically; no Meta IDs or token are needed. This does not connect a real number. Test-only accounts cannot be used for live sending.
-2. **Contatos**: add a contact or download the CSV example. CSV supports comma/semicolon delimiters, quoted fields, and BOM. Include international phone numbers with country codes. Duplicate numbers are ignored and invalid numbers reported. Maximum 2 MB / 10,000 rows per import; XLSX is not supported.
+2. **Contatos → Import list**: upload CSV or TXT, or paste a list. A phone-only file with one international number per line is accepted without a header, name, consent, or source. The first number is preserved. Names default to the normalized phone number; missing consent is left pending. Existing English/Portuguese CSV headers and optional name/consent/source columns still work, including quoted fields, semicolon delimiters, and UTF-8 BOM. Duplicate numbers are ignored and invalid entries reported. Maximum 2 MB / 100,000 rows per file; large files are sent in batches of up to 5,000 records, with progress and aggregated totals. Interrupted imports retain completed batches and can be retried without duplicating contacts or restoring opt-outs. XLSX is not supported.
 3. Record recipient consent and its source/date. A missing source leaves the contact ineligible. Reimporting a number never restores an unsubscribe.
-4. **Campanhas** creates a bulk campaign; **Robô de envio** creates a one-by-one sequence. Choose an explicit sender account, approved template, recipients, and interval. Text body parameters go one per line; `{{nome}}` personalizes the name. Media, header, and button template parameters are not included in this version.
+4. **Campanhas** creates an official-API bulk campaign. Choose an explicit API sender account, approved template, recipients, and interval. **Robô de envio** is now a separate WhatsApp Web workflow: connect numbers by QR, import contacts, write plain text, and process a separate one-by-one queue. Text body parameters go one per line; `{{nome}}` personalizes the name. Media, header, and button template parameters are not included in this version.
 5. Review and start the draft. Keep the worker running. Pause/resume controls affect pending sends; an already reserved send may finish. Simulated messages never appear as real deliveries.
 6. **Conversas**: select a contact/account and simulate an inbound message. Reply within its service window. Use SAIR to test suppression. **Atendimento** enables a first-message greeting, not an AI sales agent.
 7. **Relatórios** exports messages. **Configurações** includes the operation history.
 
-The app stores contacts in its database; it does not modify a phone's address book, scrape business directories, extract phone numbers from screenshots, or control personal WhatsApp Web sessions. The tiny embedded screenshots in the chat do not establish a reliable extraction workflow. Neither workflow rotates accounts to evade restrictions or supports unsolicited spam.
+Contacts are stored in the shared database. The QR robot can additionally save a contact in the linked WhatsApp address book before sending, with an explicit option to sync to the phone address book. This depends on the linked WhatsApp Web client supporting that operation; a save failure pauses the queue before sending. The app does not scrape business directories or extract phone numbers from screenshots. Both workflows require recorded permission and honor opt-outs. Each robot recipient is assigned a fixed sender; hitting a local ceiling does not switch the recipient to another number.
 
 ## Connect real accounts
 
@@ -91,3 +91,23 @@ npm test
 ```
 
 The integration suite starts a local production server on port 3102 (override TEST_PORT), uses a fresh temporary SQLite directory, and forces simulation. It checks authentication, origin protection, imports, consent, concurrent reservation, personalization, service windows, signed and duplicate webhooks, greetings, opt-outs, queue completion, and send ceilings. It never modifies the normal app database. Temporary databases remain in the OS temp directory for inspection.
+
+## Individual outreach robot — WhatsApp Web / QR
+
+This is independent of official-API bulk campaigns. It uses whatsapp-web.js with one persistent browser profile per linked number. No Meta template is needed for the QR workflow. It supports up to 20 configured connections, per-connection limits, a delay between contacts, contact saving, personalized plain text ({{name}}/{{nome}}, {{business}}/{{empresa}}), pause/resume, and incoming reply/opt-out records.
+
+1. Open **Outreach bot → QR connections → Link WhatsApp by QR**. Name the connection and set its local 24-hour ceiling.
+2. Click **Connect**. This starts the dedicated robot worker when necessary. Scan the QR in WhatsApp → Linked devices → Link a device. Credentials stay in DATA_DIR/outreach-auth, never in public assets. QR codes expire and are shown only to authenticated administrators.
+3. Import contacts through the existing CSV/TXT importer and record permission in Contacts. Create a **New outreach queue**, select linked sender numbers and authorized contacts, enter text, and set the delay. Review before pressing Start.
+4. **Save contact in WhatsApp** is explicit; syncing to the phone address book is a separate opt-in. Simulation skips both external contact saving and actual sends. Live sending requires server WHATSAPP_MODE=live. QR linking itself can be tested while sending remains simulated.
+5. **View contacts and replies** shows statuses, saved-contact evidence, errors, and recent replies. Failed or uncertain sends pause the queue. Uncertain deliveries never retry automatically: verify the actual conversation, then skip the item after review.
+
+The worker can also be supervised explicitly with **npm run outreach:worker**. Only one worker lease may own the robot queue. Official bulk campaigns continue to use **npm run worker**; the workers and queues do not process each other's jobs. The robot supports auto-start from a Connect action on a persistent Node installation with the full project available. For supervised deployments, start the worker yourself and set OUTREACH_DISABLE_AUTOSTART=true.
+
+Install a current system Chrome/Chromium/Edge browser, or set PUPPETEER_EXECUTABLE_PATH to its executable. Puppeteer Chromium download is skipped in this workspace because system Chrome/Edge is already installed. Run the browser as an unprivileged user with its sandbox enabled. Keep DATA_DIR durable and private; serverless/ephemeral hosting cannot preserve linked sessions. Pairing and address-book support depend on WhatsApp Web, and real-phone sending needs a linked device; automated tests use isolated simulation and injected senders.
+
+Existing sequential API records migrate into read-only robot history. A complete pre-migration JSON backup is saved under DATA_DIR/backups. Completed sends stay completed, active sequences are paused, and in-flight deliveries become needs-review. Original messages/provider IDs are preserved. Legacy API sequences are not silently converted into QR/plain-text sends; create and review a new QR queue explicitly.
+
+Tests: npm run test:outreach covers migration idempotency, independent reservations, timing, per-session ceilings, opt-outs, contact-save order, dry-run isolation, and uncertain delivery. npm test includes authenticated QR/session endpoints and full simulated robot processing alongside existing API workflows.
+
+Connector references: [Client API](https://docs.wwebjs.dev/Client.html), [LocalAuth and multiple sessions](https://wwebjs.dev/guide/creating-your-bot/authentication.html).

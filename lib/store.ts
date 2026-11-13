@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { separateLegacyOutreach } from './outreach-migration.ts';
 import path from 'node:path';
 import type { State } from './types';
 
@@ -43,6 +44,26 @@ export function update<T>(fn: (state: State) => T): T {
   }
 }
 export function audit(state: State, text: string) {
+  if (state.workspace?.keepCampaignLogs === false && /^Campanha\b/.test(text)) return;
   state.audit.unshift({ at: new Date().toISOString(), text });
   state.audit = state.audit.slice(0, 1000);
+}
+
+export function migrateLegacyOutreach() {
+  if (!read().campaigns.some((c) => c.mode === 'sequential')) return;
+  update((state) => {
+    if (!state.campaigns.some((c) => c.mode === 'sequential')) return;
+    const backupDir = path.join(dir, 'backups');
+    mkdirSync(backupDir, { recursive: true });
+    writeFileSync(
+      path.join(backupDir, 'before-outreach-' + Date.now() + '-' + crypto.randomUUID() + '.json'),
+      JSON.stringify(state),
+      { flag: 'wx' },
+    );
+    Object.assign(state, separateLegacyOutreach(state));
+    audit(
+      state,
+      'Sequências antigas migradas para o histórico do robô. Envios pendentes exigem revisão.',
+    );
+  });
 }

@@ -2,15 +2,15 @@
 import {
   BarChart3,
   Bot,
-  ChevronRight,
   Inbox,
   LayoutDashboard,
   Send,
   Settings,
-  ShieldCheck,
   Smartphone,
   Users,
   MessageCircle,
+  Crown,
+  ArrowRight,
 } from 'lucide-react';
 import { useLanguage } from './language';
 import WhatsAppMark from './whatsapp-mark';
@@ -49,12 +49,16 @@ export default function WorkspaceSidebar({
   tab,
   onNavigate,
   simulation,
-  contactCount,
+  accountCount = 0,
+  incomingCount = 0,
+  workspaceName,
 }: {
   tab: WorkspaceTab;
   onNavigate: (tab: WorkspaceTab) => void;
   simulation: boolean;
-  contactCount: number;
+  accountCount?: number;
+  incomingCount?: number;
+  workspaceName?: string;
 }) {
   const { t, locale } = useLanguage();
   return (
@@ -63,7 +67,7 @@ export default function WorkspaceSidebar({
         <WhatsAppMark />
         <span>
           WhatsBot <strong>Pro</strong>
-          <small>{t('SUA OPERAÇÃO, CONECTADA')}</small>
+          <small>{t('Automação do WhatsApp')}</small>
         </span>
       </a>
       <nav className="workspace-nav" aria-label={t('Navegação principal')}>
@@ -78,39 +82,32 @@ export default function WorkspaceSidebar({
               >
                 <item.icon size={18} />
                 <span>{t(item.name)}</span>
-                {item.name === 'Contatos' && contactCount > 0 ? (
-                  <small>{contactCount.toLocaleString(locale)}</small>
-                ) : tab === item.name ? (
-                  <span className="workspace-nav-active-dot" />
+                {item.name === 'Conversas' && incomingCount > 0 ? (
+                  <small className="overview-inbox-count">
+                    {incomingCount.toLocaleString(locale)}
+                  </small>
                 ) : null}
               </button>
             ))}
           </div>
         ))}
       </nav>
-      <div className="workspace-sidebar-bottom">
-        <div className="workspace-channel-note">
-          <span>
-            <ShieldCheck size={20} />
-          </span>
-          <div>
-            <strong>{simulation ? t('Ambiente de simulação') : 'WhatsApp Cloud API'}</strong>
-            <p>{simulation ? t('Teste antes de conectar.') : t('Integração oficial Meta.')}</p>
-          </div>
-          <button onClick={() => onNavigate('Contas WhatsApp')} aria-label={t('Contas WhatsApp')}>
-            <ChevronRight size={16} />
-          </button>
-        </div>
-        <div className="workspace-operator">
-          <span>
-            A<span />
-          </span>
-          <div>
-            <strong>{t('Administrador')}</strong>
-            <small>{t('Meu espaço de trabalho')}</small>
-          </div>
-          <span className="workspace-operator-dot" />
-        </div>
+      <div className="overview-workspace-card">
+        <h3>
+          <Crown size={20} />
+          {workspaceName || t('Meu espaço de trabalho')}
+        </h3>
+        <p>
+          {accountCount.toLocaleString(locale)} {t('Contas WhatsApp')}
+        </p>
+        <span className="overview-workspace-mode">
+          {t(simulation ? 'Ambiente de simulação' : 'Integração oficial Meta.')}
+        </span>
+        <div className="overview-workspace-accent" aria-hidden="true" />
+        <button onClick={() => onNavigate('Contas WhatsApp')}>
+          {t('Gerenciar contas')}
+          <ArrowRight size={16} />
+        </button>
       </div>
     </>
   );

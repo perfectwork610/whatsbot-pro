@@ -5,3 +5,6 @@ node_modules/
 data/
 .test-data/
 *.tsbuildinfo
+
+.wwebjs_auth/
+.wwebjs_cache/

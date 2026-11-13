@@ -4,7 +4,6 @@ import {
   Bot,
   Check,
   ChevronRight,
-  Download,
   LoaderCircle,
   Menu,
   MessageCircle,
@@ -12,18 +11,15 @@ import {
   Play,
   Plus,
   RefreshCw,
-  Search,
   Send,
   ShieldCheck,
   Smartphone,
-  Upload,
   Users,
   X,
 } from 'lucide-react';
 import type { State } from '@/lib/types';
-import { csvDownload, parseCSV } from '@/lib/csv';
+import { contactImportBatches, type ImportedContact } from '@/lib/csv';
 import { LanguageSelector, useLanguage } from '@/components/language';
-import { contactColumns } from '@/lib/i18n';
 import LogoutButton from '@/components/logout-button';
 import WorkspaceSidebar from '@/components/workspace-sidebar';
 import Overview from '@/components/overview';
@@ -32,7 +28,6 @@ import {
   Button,
   Card,
   Empty,
-  Initials,
   Label,
   StatCard,
   statusLabels as labels,
@@ -42,6 +37,23 @@ import WorkspaceInbox from '@/components/workspace-inbox';
 import WorkspaceReports from '@/components/workspace-reports';
 import WorkspaceService from '@/components/workspace-service';
 import AccountForm from '@/components/account-form';
+import ContactImport from '@/components/contact-import';
+import OverviewToolbar from '@/components/overview-toolbar';
+import './overview.css';
+import ContactsPage from './contacts-page';
+import './contacts-page.css';
+import CampaignsPage from './campaigns-page';
+import './campaigns-page.css';
+import './inbox-page.css';
+import AccountsPage from './accounts-page';
+import './accounts-page.css';
+import SettingsPage from './settings-page';
+import './settings-page.css';
+import './reports-page.css';
+import './service-page.css';
+import './workspace-typography.css';
+import OutreachPage from './outreach-page';
+import './outreach-page.css';
 
 type Data = Omit<State, 'accounts'> & {
   simulation: boolean;
@@ -64,9 +76,18 @@ function values(e: FormEvent<HTMLFormElement>) {
 }
 
 export default function Workspace() {
-  const { locale, t } = useLanguage();
+  const { locale, t, setLocale } = useLanguage();
   const date = (s: string) => new Date(s).toLocaleString(locale);
   const [data, setData] = useState<Data>();
+  const languageInitialized = useRef(false);
+  useEffect(() => {
+    if (!data || languageInitialized.current) return;
+    languageInitialized.current = true;
+    try {
+      if (!localStorage.getItem('whatsbot.language') && data.workspace?.language)
+        setLocale(data.workspace.language);
+    } catch {}
+  }, [data, setLocale]);
   const [tab, setTab] = useState<Tab>('Visão geral');
   const [menu, setMenu] = useState(false);
   const [modal, setModal] = useState<
@@ -75,8 +96,6 @@ export default function Workspace() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const [query, setQuery] = useState('');
-  const [page, setPage] = useState(0);
   const [consentContactId, setConsentContactId] = useState('');
   const modalPanel = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -106,6 +125,10 @@ export default function Workspace() {
       }
       if (event.key === 'Tab') {
         const items = controls();
+        if (!items.length) {
+          event.preventDefault();
+          return;
+        }
         const first = items[0],
           last = items.at(-1);
         if (event.shiftKey && document.activeElement === first) {
@@ -128,9 +151,13 @@ export default function Workspace() {
   const [contactId, setContactId] = useState('');
   const [campaignAccount, setCampaignAccount] = useState('');
   const [recipientIds, setRecipientIds] = useState<string[]>([]);
-  const [csv, setCsv] = useState('');
+  const importActive = useRef(false);
+  const [importProgress, setImportProgress] = useState<{ processed: number; total: number } | null>(
+    null,
+  );
   const [templateKey, setTemplateKey] = useState('');
   async function refresh() {
+    if (importActive.current) return;
     const response = await fetch('/api/manage', { cache: 'no-store' });
     if (response.status === 401) {
       window.location.replace('/login');
@@ -179,11 +206,54 @@ export default function Workspace() {
       setBusy(false);
     }
   }
+  async function importContacts(rows: ImportedContact[]) {
+    if (importActive.current) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    importActive.current = true;
+    setImportProgress({ processed: 0, total: rows.length });
+    let added = 0,
+      duplicates = 0,
+      invalid = 0,
+      processed = 0;
+    try {
+      for (const batch of contactImportBatches(rows)) {
+        const response = await fetch('/api/manage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'contacts', rows: batch }),
+        });
+        if (response.status === 401) {
+          window.location.replace('/login');
+          throw new Error('Sessão expirada. Entre novamente.');
+        }
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || 'Falha na operação');
+        added += body.result.added;
+        duplicates += body.result.duplicates;
+        invalid += body.result.invalid;
+        processed += batch.length;
+        setImportProgress({ processed, total: rows.length });
+      }
+      setNotice(added + ' importados · ' + duplicates + ' duplicados · ' + invalid + ' inválidos');
+      setImportProgress(null);
+      setModal(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Falha na operação');
+    } finally {
+      importActive.current = false;
+      try {
+        await refresh();
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Falha na operação');
+      }
+      setBusy(false);
+    }
+  }
   function navigate(name: Tab) {
     setTab(name);
     setMenu(false);
-    setQuery('');
-    setPage(0);
     setError('');
     setNotice('');
   }
@@ -207,9 +277,6 @@ export default function Workspace() {
       </main>
     );
   const eligible = data.contacts.filter((c) => c.consent && !c.optedOut);
-  const filtered = data.contacts.filter((c) =>
-    `${c.name} ${c.phone}`.toLowerCase().includes(query.toLowerCase()),
-  );
   const campaigns = data.campaigns.filter(
     (c) => c.mode === (tab === 'Robô de envio' ? 'sequential' : 'bulk'),
   );
@@ -220,11 +287,26 @@ export default function Workspace() {
       tab={tab}
       onNavigate={navigate}
       simulation={data.simulation}
-      contactCount={data.contacts.length}
+      accountCount={data.accounts.length}
+      workspaceName={data.workspace?.name}
+      incomingCount={
+        data.messages.filter(
+          (message) =>
+            message.direction === 'in' &&
+            !!message.simulated === data.simulation &&
+            Date.parse(message.createdAt) >
+              Date.parse(
+                data.conversations?.[`${message.accountId}:${message.contactId}`]?.readAt ||
+                  '1970-01-01',
+              ),
+        ).length
+      }
     />
   );
   return (
-    <div className="workspace min-h-screen">
+    <div
+      className={`workspace min-h-screen ${tab === 'Visão geral' ? 'workspace--overview' : tab === 'Contatos' ? 'workspace--contacts' : tab === 'Campanhas' ? 'workspace--campaigns' : tab === 'Conversas' ? 'workspace--inbox' : tab === 'Contas WhatsApp' ? 'workspace--accounts' : tab === 'Configurações' ? 'workspace--settings' : tab === 'Relatórios' ? 'workspace--reports' : tab === 'Atendimento' ? 'workspace--service' : tab === 'Robô de envio' ? 'workspace--outreach' : ''}`}
+    >
       <aside className="workspace-sidebar fixed inset-y-0 left-0 z-40 hidden w-64 flex-col text-white lg:flex">
         {nav}
       </aside>
@@ -261,71 +343,36 @@ export default function Workspace() {
             <ChevronRight size={14} className="hidden text-slate-300 sm:block" />
             <span className="truncate text-sm font-semibold">{t(tab)}</span>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            <LanguageSelector />
-            <span
-              className={`hidden rounded-full px-3 py-1 text-xs font-semibold sm:inline-flex ${data.simulation ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'}`}
-            >
-              {data.simulation ? t('Simulação · sem envios reais') : t('Modo live')}
-            </span>
-            <button
-              aria-label={t('Atualizar dados')}
-              onClick={() => refresh().catch((e) => setError(e.message))}
-              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-            >
-              <RefreshCw size={17} />
-            </button>
-            <LogoutButton />
-          </div>
+          {tab === 'Visão geral' ||
+          tab === 'Contatos' ||
+          tab === 'Campanhas' ||
+          tab === 'Conversas' ||
+          tab === 'Contas WhatsApp' ||
+          tab === 'Configurações' ||
+          tab === 'Relatórios' ||
+          tab === 'Atendimento' ||
+          tab === 'Robô de envio' ? (
+            <OverviewToolbar data={data} />
+          ) : (
+            <div className="flex items-center gap-2 sm:gap-4">
+              <LanguageSelector />
+              <span
+                className={`hidden rounded-full px-3 py-1 text-xs font-semibold sm:inline-flex ${data.simulation ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'}`}
+              >
+                {data.simulation ? t('Simulação · sem envios reais') : t('Modo live')}
+              </span>
+              <button
+                aria-label={t('Atualizar dados')}
+                onClick={() => refresh().catch((e) => setError(e.message))}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <RefreshCw size={17} />
+              </button>
+              <LogoutButton />
+            </div>
+          )}
         </header>
         <main className="workspace-main mx-auto max-w-[1500px] px-5 py-8 sm:px-8">
-          <div className="workspace-page-heading mb-7 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[.18em] text-emerald-700">
-                WhatsBot Pro / {t(tab)}
-              </p>
-              <h1 className="text-3xl font-bold tracking-tight">{t(tab)}</h1>
-              <p className="mt-2 text-sm text-slate-500">
-                {tab === 'Visão geral'
-                  ? t('Contatos, campanhas e conversas. Acompanhe o que acontece de verdade.')
-                  : tab === 'Robô de envio'
-                    ? t('Salve sua lista e inicie conversas uma a uma, com intervalo configurável.')
-                    : tab === 'Campanhas'
-                      ? t('Organize envios de modelos aprovados para sua base com permissão.')
-                      : t('Gerencie sua operação no WhatsApp.')}
-              </p>
-            </div>
-            {['Campanhas', 'Robô de envio', 'Visão geral'].includes(tab) && (
-              <Button onClick={openCampaign}>
-                <Plus size={17} />{' '}
-                {tab === 'Robô de envio' ? t('Nova sequência') : t('Nova campanha')}
-              </Button>
-            )}
-            {tab === 'Contatos' && (
-              <div className="flex gap-2">
-                <Button
-                  secondary
-                  onClick={() => {
-                    setCsv('');
-                    setModal('import');
-                  }}
-                >
-                  <Upload size={16} />
-                  {t('Importar CSV')}
-                </Button>
-                <Button onClick={() => setModal('contact')}>
-                  <Plus size={16} />
-                  {t('Contato')}
-                </Button>
-              </div>
-            )}
-            {tab === 'Contas WhatsApp' && (
-              <Button onClick={() => setModal('account')}>
-                <Plus size={16} />
-                {t('Adicionar conta')}
-              </Button>
-            )}
-          </div>
           {error && (
             <div
               role="alert"
@@ -351,308 +398,84 @@ export default function Workspace() {
               </button>
             </div>
           )}
-          {tab === 'Visão geral' && <Overview data={data} navigate={navigate} />}
-          {tab === 'Contatos' && (
-            <>
-              <div className="workspace-contact-stats">
-                <StatCard
-                  label="Contatos na base"
-                  value={data.contacts.length.toLocaleString(locale)}
-                  icon={Users}
-                />
-                <StatCard
-                  label="Autorizado"
-                  value={eligible.length.toLocaleString(locale)}
-                  icon={ShieldCheck}
-                  tone="blue"
-                />
-                <StatCard
-                  label="Descadastrado"
-                  value={data.contacts.filter((c) => c.optedOut).length.toLocaleString(locale)}
-                  icon={X}
-                  tone="amber"
-                />
-              </div>
-              <Card>
-                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                  <div className="relative">
-                    <Search size={16} className="absolute left-3 top-3 text-slate-400" />
-                    <input
-                      aria-label={t('Buscar contatos')}
-                      placeholder={t('Buscar nome ou telefone')}
-                      value={query}
-                      onChange={(e) => {
-                        setQuery(e.target.value);
-                        setPage(0);
-                      }}
-                      className={`${field} !mt-0 pl-10`}
-                    />
-                  </div>
-                  <Button
-                    secondary
-                    onClick={() =>
-                      csvDownload(locale === 'en' ? 'contacts.csv' : 'contatos.csv', [
-                        contactColumns[locale],
-                        ...filtered.map((c) => [c.name, c.phone, c.consent, c.source, c.optedOut]),
-                      ])
-                    }
-                  >
-                    <Download size={15} />
-                    {t('Exportar')}
-                  </Button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead className="border-y border-slate-100 bg-slate-50 text-xs text-slate-500">
-                      <tr>
-                        {['Nome', 'Telefone', 'Permissão', 'Origem', 'Ações'].map((x) => (
-                          <th className="px-3 py-3" key={t(x)}>
-                            {t(x)}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtered.slice(page * 100, page * 100 + 100).map((c) => (
-                        <tr key={c.id} className="border-b border-slate-100">
-                          <td className="px-3 py-4 font-semibold">
-                            <span className="workspace-contact-name">
-                              <Initials name={c.name} />
-                              <span>{c.name}</span>
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap px-3 text-slate-500">+{c.phone}</td>
-                          <td className="px-3">
-                            <Badge
-                              status={
-                                c.optedOut
-                                  ? t('Descadastrado')
-                                  : c.consent
-                                    ? t('Autorizado')
-                                    : t('Sem permissão')
-                              }
-                            />
-                          </td>
-                          <td className="max-w-64 px-3 text-xs text-slate-500">
-                            {c.source || '—'}
-                          </td>
-                          <td className="px-3">
-                            <button
-                              disabled={busy}
-                              className="text-xs font-semibold text-emerald-700"
-                              onClick={() => {
-                                if (c.consent)
-                                  void act(
-                                    { action: 'consent', id: c.id, consent: false },
-                                    'Contato descadastrado.',
-                                  );
-                                else {
-                                  setConsentContactId(c.id);
-                                  setModal('consent');
-                                }
-                              }}
-                            >
-                              {c.consent ? t('Descadastrar') : t('Registrar permissão')}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {!filtered.length && (
-                  <Empty icon={Users}>
-                    {t('Adicione um contato ou importe uma lista CSV para começar.')}
-                  </Empty>
-                )}
-                <div className="workspace-pagination mt-4 flex items-center justify-between text-xs text-slate-500">
-                  <span>
-                    {filtered.length} {t('contatos · página')} {page + 1}
-                  </span>
-                  <div className="flex gap-3">
-                    <button disabled={!page} onClick={() => setPage(page - 1)}>
-                      {t('Anterior')}
-                    </button>
-                    <button
-                      disabled={(page + 1) * 100 >= filtered.length}
-                      onClick={() => setPage(page + 1)}
-                    >
-                      {t('Próxima')}
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            </>
+          {tab === 'Visão geral' && (
+            <Overview
+              data={data}
+              navigate={navigate}
+              onCampaign={openCampaign}
+              onAddAccount={() => {
+                navigate('Contas WhatsApp');
+                setModal('account');
+              }}
+              onImport={() => {
+                navigate('Contatos');
+                setImportProgress(null);
+                setModal('import');
+              }}
+            />
           )}
-          {['Campanhas', 'Robô de envio'].includes(tab) && (
-            <>
-              <div className="mb-5 grid gap-4 sm:grid-cols-3">
-                {['draft', 'running', 'completed'].map((status) => (
-                  <Card key={status} className="workspace-status-card">
-                    <p className="text-xs text-slate-500">{t(labels[status])}</p>
-                    <p className="mt-2 text-2xl font-bold">
-                      {campaigns.filter((c) => c.status === status).length}
-                    </p>
-                  </Card>
-                ))}
-              </div>
-              <div className="space-y-4">
-                {campaigns.map((c) => {
-                  const jobs = data.jobs.filter((j) => j.campaignId === c.id);
-                  const sent = jobs.filter((j) => j.status === 'sent').length;
-                  return (
-                    <Card key={c.id}>
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <h2 className="font-bold">{c.name}</h2>
-                            <Badge status={c.status} />
-                          </div>
-                          <p className="mt-2 text-xs text-slate-500">
-                            {data.accounts.find((a) => a.id === c.accountId)?.name} · {c.template}{' '}
-                            {t('· intervalo de')} {c.delay}s
-                          </p>
-                        </div>
-                        <Button
-                          secondary
-                          disabled={busy || !jobs.some((j) => j.status === 'pending')}
-                          onClick={() =>
-                            void act(
-                              {
-                                action: 'campaign-status',
-                                id: c.id,
-                                status: c.status === 'running' ? 'paused' : 'running',
-                              },
-                              c.status === 'running'
-                                ? 'Campanha pausada.'
-                                : 'Fila ativada. Mantenha o worker em execução.',
-                            )
-                          }
-                        >
-                          {c.status === 'running' ? <Pause size={15} /> : <Play size={15} />}{' '}
-                          {c.status === 'running' ? t('Pausar') : t('Iniciar')}
-                        </Button>
-                      </div>
-                      <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div
-                          className="h-full rounded-full bg-emerald-600 transition-all"
-                          style={{ width: `${jobs.length ? (sent / jobs.length) * 100 : 0}%` }}
-                        />
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-5 text-xs text-slate-500">
-                        <span>
-                          {sent}/{jobs.length} {data.simulation ? t('processados') : t('aceitos')}
-                        </span>
-                        <span>
-                          {jobs.filter((j) => j.status === 'pending').length} {t('pendentes')}
-                        </span>
-                        <span>
-                          {jobs.filter((j) => j.status === 'failed').length} {t('falhas')}
-                        </span>
-                        <span>
-                          {jobs.filter((j) => j.status === 'skipped').length} {t('ignorados')}
-                        </span>
-                      </div>
-                      {jobs
-                        .filter((j) => j.status === 'processing' || j.error)
-                        .map((j) => (
-                          <p
-                            className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-800"
-                            key={j.id}
-                          >
-                            {data.contacts.find((c) => c.id === j.contactId)?.phone}:{' '}
-                            {j.error
-                              ? t(j.error)
-                              : t(
-                                  'Envio reservado. Se o processo foi interrompido, confirme na Meta antes de reenviar.',
-                                )}
-                          </p>
-                        ))}
-                    </Card>
+          {tab === 'Contatos' && (
+            <ContactsPage
+              contacts={data.contacts}
+              busy={busy}
+              onImport={() => {
+                setImportProgress(null);
+                setModal('import');
+              }}
+              onAdd={() => setModal('contact')}
+              onSave={async (contact) =>
+                act({ action: 'contact-update', ...contact }, 'Contato salvo.')
+              }
+              onPermission={(contact) => {
+                if (contact.consent && !contact.optedOut)
+                  void act(
+                    { action: 'consent', id: contact.id, consent: false },
+                    'Contato descadastrado.',
                   );
-                })}
-                {!campaigns.length && (
-                  <Card>
-                    <Empty icon={tab === 'Robô de envio' ? Bot : Send}>
-                      {tab === 'Robô de envio'
-                        ? t(
-                            'Nenhuma sequência criada. Importe sua lista e escolha um modelo para iniciar o contato individual.',
-                          )
-                        : t(
-                            'Sua primeira campanha começa aqui. Escolha uma conta, um modelo e seus destinatários.',
-                          )}
-                    </Empty>
-                  </Card>
-                )}
-              </div>
-              <p className="mt-5 text-xs leading-6 text-slate-400">
-                {t(
-                  'O worker processa um envio por vez e respeita o intervalo por conta. Limites locais são um teto operacional; os limites reais e a elegibilidade são definidos pela Meta. Falhas pausam a campanha e não são reenviadas automaticamente.',
-                )}
-              </p>
-            </>
+                else {
+                  setConsentContactId(contact.id);
+                  setModal('consent');
+                }
+              }}
+            />
+          )}
+          {tab === 'Campanhas' && (
+            <CampaignsPage
+              data={data}
+              busy={busy}
+              onCreate={openCampaign}
+              onStatus={(c) => {
+                void act(
+                  {
+                    action: 'campaign-status',
+                    id: c.id,
+                    status: c.status === 'running' ? 'paused' : 'running',
+                  },
+                  c.status === 'running'
+                    ? 'Campanha pausada.'
+                    : 'Fila ativada. Mantenha o worker em execução.',
+                );
+              }}
+            />
+          )}
+          {tab === 'Robô de envio' && (
+            <OutreachPage
+              contacts={data.contacts}
+              onChanged={refresh}
+              onImport={() => {
+                setImportProgress(null);
+                setModal('import');
+              }}
+              onContacts={() => navigate('Contatos')}
+            />
           )}
           {tab === 'Contas WhatsApp' && (
-            <div className="grid gap-5 md:grid-cols-2">
-              {data.accounts.map((a) => (
-                <Card key={a.id} className="workspace-account-card">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-emerald-50 p-3 text-emerald-700">
-                      <Smartphone />
-                    </div>
-                    <div>
-                      <h2 className="font-bold">{a.name}</h2>
-                      <p className="mt-1 text-xs text-slate-500">{a.simulationOnly ? t('Conta de teste') : 'Phone Number ID: '+a.phoneId}{a.displayPhone ? ' · +'+a.displayPhone : ''}</p>
-                    </div>
-                  </div>
-                  <div className="my-5 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-xs">
-                    <div className="text-slate-500">
-                      {t('Teto local / 24h')}
-                      <p className="mt-1 font-bold text-slate-800">
-                        {a.dailyLimit.toLocaleString(locale)}
-                      </p>
-                    </div>
-                    <div className="text-slate-500">
-                      {t('Credencial')}
-                      <p className="mt-1 font-bold text-slate-800">
-                        {a.simulationOnly ? t('Não necessária na simulação') : a.configured ? t('Configurada no servidor') : t('Pendente')}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="mb-4 break-all text-xs text-slate-500">
-                    {a.simulationOnly ? t('Esta conta não está conectada a um número real.') : <>Token: {a.tokenEnv} · WABA: {a.wabaId}</>}
-                  </p>
-                  <Button
-                    secondary
-                    disabled={busy || data.simulation || a.simulationOnly}
-                    onClick={() => void act({ action: 'sync', id: a.id }, 'Modelos sincronizados.')}
-                  >
-                    <RefreshCw size={14} />
-                    {t('Sincronizar modelos')}
-                  </Button>
-                  <div className="mt-4 space-y-2">
-                    {a.templates.map((t) => (
-                      <div
-                        key={`${t.name}:${t.language}`}
-                        className="flex justify-between gap-2 text-xs"
-                      >
-                        <span>
-                          {t.name} · {t.language}
-                        </span>
-                        <Badge status={t.status} />
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              ))}
-              {!data.accounts.length && (
-                <Card className="md:col-span-2">
-                  <Empty icon={Smartphone}>
-                    {t('Adicione uma conta para começar. Na simulação, crie uma conta de teste sem IDs da Meta.')}
-                  </Empty>
-                </Card>
-              )}
-            </div>
+            <AccountsPage
+              data={data}
+              busy={busy}
+              onAdd={() => setModal('account')}
+              onAction={act}
+            />
           )}
           {tab === 'Conversas' && (
             <WorkspaceInbox
@@ -666,51 +489,17 @@ export default function Workspace() {
             />
           )}
           {tab === 'Atendimento' && (
-            <WorkspaceService settings={data.settings} onAction={act} busy={busy} />
+            <WorkspaceService
+              settings={data.settings}
+              onAction={act}
+              busy={busy}
+              workspaceName={data.workspace?.name}
+              onNavigate={navigate}
+            />
           )}
           {tab === 'Relatórios' && <WorkspaceReports data={data} />}
           {tab === 'Configurações' && (
-            <div className="grid gap-5 xl:grid-cols-2">
-              <Card className="workspace-settings-card">
-                <h2 className="font-bold">{t('Conexão e execução')}</h2>
-                <div className="mt-5 space-y-4 text-sm leading-6 text-slate-600">
-                  <p>
-                    {t('Ambiente:')} <strong>{data.simulation ? t('Simulação') : 'Live'}</strong>
-                    {t('. Altere WHATSAPP_MODE no arquivo .env.local e reinicie o servidor.')}
-                  </p>
-                  <p>
-                    {t('Webhook público:')} <code>/api/webhook</code>
-                    {t('. Configure META_VERIFY_TOKEN e META_APP_SECRET no servidor.')}
-                  </p>
-                  <p>
-                    {t('Mantenha')} <code>npm run worker</code>{' '}
-                    {t('em execução para processar campanhas com a página aberta ou fechada.')}
-                  </p>
-                  <p>
-                    {t(
-                      'Use variáveis WA_TOKEN_NOME para credenciais. O painel nunca recebe os tokens.',
-                    )}
-                  </p>
-                  <p>
-                    {t(
-                      'Backup: copie o banco SQLite em data usando uma ferramenta compatível com SQLite. Consulte o README para implantação e recuperação.',
-                    )}
-                  </p>
-                </div>
-              </Card>
-              <Card>
-                <h2 className="font-bold">{t('Histórico de operação')}</h2>
-                <div className="mt-4 max-h-96 overflow-auto">
-                  {data.audit.map((a, i) => (
-                    <div key={i} className="border-b border-slate-100 py-3">
-                      <p className="text-xs leading-5">{t(a.text)}</p>
-                      <p className="mt-1 text-[10px] text-slate-400">{date(a.at)}</p>
-                    </div>
-                  ))}
-                  {!data.audit.length && <Empty>{t('Nenhum evento registrado.')}</Empty>}
-                </div>
-              </Card>
-            </div>
+            <SettingsPage data={data} busy={busy} onAction={act} onNavigate={navigate} />
           )}
         </main>
       </div>
@@ -732,7 +521,7 @@ export default function Workspace() {
                     : modal === 'import'
                       ? t('Importar contatos')
                       : modal === 'account'
-                        ? t(data.simulation?'Criar conta de teste':'Adicionar conta oficial')
+                        ? t(data.simulation ? 'Criar conta de teste' : 'Adicionar conta oficial')
                         : tab === 'Robô de envio'
                           ? t('Nova sequência')
                           : t('Nova campanha')}
@@ -827,79 +616,20 @@ export default function Workspace() {
               </form>
             )}
             {modal === 'import' && (
-              <form
-                className="space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  try {
-                    const rows = parseCSV(csv).map((r) => ({
-                      name: r.nome || r.name,
-                      phone: r.telefone || r.phone || r.numero || r['número'],
-                      source: r.origem || r.source,
-                      consent: ['true', 'sim', '1', 'yes'].includes(
-                        (r.consentimento || r.consent || '').toLowerCase(),
-                      ),
-                    }));
-                    void act({ action: 'contacts', rows }, '', true);
-                  } catch (e) {
-                    setError((e as Error).message);
-                  }
-                }}
-              >
-                <p className="text-sm leading-6 text-slate-500">
-                  {t(
-                    'CSV com colunas nome, telefone, consentimento, origem. Use código do país. Duplicados são ignorados; contatos sem origem de consentimento ficam sem permissão.',
-                  )}
-                </p>
-                <Button
-                  secondary
-                  onClick={() =>
-                    csvDownload(locale === 'en' ? 'contacts-example.csv' : 'modelo-contatos.csv', [
-                      contactColumns[locale].slice(0, 4),
-                      locale === 'en'
-                        ? ['Example customer', '5511999999999', 'yes', 'Website form, Nov 13, 2026']
-                        : [
-                            'Cliente exemplo',
-                            '5511999999999',
-                            'sim',
-                            'Formulário do site em 13/11/2026',
-                          ],
-                    ])
-                  }
-                >
-                  <Download size={14} />
-                  {t('Baixar modelo')}
-                </Button>
-                <input
-                  aria-label={t('Arquivo CSV')}
-                  type="file"
-                  accept=".csv,text/csv"
-                  className="block w-full text-sm"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      if (file.size > 2_000_000) {
-                        setError('Máximo de 2 MB.');
-                        return;
-                      }
-                      setCsv(await file.text());
-                    }
-                  }}
-                />
-                <textarea
-                  aria-label={t('Conteúdo CSV')}
-                  value={csv}
-                  onChange={(e) => setCsv(e.target.value)}
-                  className={`${field} font-mono text-xs`}
-                  rows={7}
-                  placeholder={t('nome,telefone,consentimento,origem\n')}
-                />
-                <Button type="submit" disabled={busy || !csv.trim()}>
-                  {t('Validar e importar')}
-                </Button>
-              </form>
+              <ContactImport
+                busy={busy}
+                progress={importProgress}
+                onImport={importContacts}
+                onError={setError}
+              />
             )}
-            {modal === 'account' && <AccountForm simulation={data.simulation} busy={busy} onSave={payload=>void act(payload,'Conta cadastrada.',true)}/>}
+            {modal === 'account' && (
+              <AccountForm
+                simulation={data.simulation}
+                busy={busy}
+                onSave={(payload) => void act(payload, 'Conta cadastrada.', true)}
+              />
+            )}
             {modal === 'campaign' && (
               <form
                 className="space-y-4"
@@ -918,7 +648,7 @@ export default function Workspace() {
                         .map((s) => s.trim())
                         .filter(Boolean),
                       contactIds: recipientIds,
-                      mode: tab === 'Robô de envio' ? 'sequential' : 'bulk',
+                      mode: 'bulk',
                     },
                     'Rascunho criado. Revise e inicie a fila.',
                     true,

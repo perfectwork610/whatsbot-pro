@@ -3,10 +3,11 @@ import { send, simulation } from './whatsapp';
 import type { Account, Campaign, Contact } from './types';
 export async function tick() {
   const reserved = update((s) => {
-    for (const campaign of s.campaigns.filter((c) => c.status === 'running')) {
+    for (const campaign of s.campaigns.filter((c) => c.status === 'running' && c.mode === 'bulk')) {
       const account = s.accounts.find((a) => a.id === campaign.accountId);
       if (
         !account ||
+        account.enabled === false ||
         (s.nextSend[account.id] || 0) > Date.now() ||
         s.jobs.some(
           (j) =>

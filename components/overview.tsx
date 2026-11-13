@@ -4,190 +4,310 @@ import {
   ArrowUpRight,
   Bot,
   Check,
-  CheckCheck,
-  ChevronRight,
-  Clock3,
-  Inbox,
-  MessageCircle,
+  MessageSquareMore,
   Send,
-  ShieldCheck,
   Smartphone,
-  Sparkles,
   Users,
+  type LucideIcon,
 } from 'lucide-react';
 import type { State } from '@/lib/types';
+import { overviewData } from '@/lib/overview-data';
 import { useLanguage } from './language';
-import { Button, Card, Empty, StatCard } from './workspace-ui';
+import { Card, Empty } from './workspace-ui';
 import WhatsAppMark from './whatsapp-mark';
 import MessageActivity from './message-activity';
+
+function HeaderArtwork() {
+  return (
+    <div className="overview-header-art" aria-hidden="true">
+      <svg className="overview-ribbon" viewBox="0 0 560 190">
+        <defs>
+          <linearGradient id="overview-wave" x1="0" y1="0" x2="1" y2="0">
+            <stop stopColor="#6af3b1" stopOpacity="0" />
+            <stop offset=".5" stopColor="#34ef8e" stopOpacity=".55" />
+            <stop offset="1" stopColor="#48f7a1" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path
+          d="M0 132C100 190 117-9 254 80S409 146 560 40V122C420 78 409 190 262 132S137 163 0 170Z"
+          fill="url(#overview-wave)"
+        />
+        <path
+          d="M0 145C120 202 145 30 265 91S445 144 560 79"
+          fill="none"
+          stroke="url(#overview-wave)"
+          strokeWidth="23"
+        />
+      </svg>
+      <span className="overview-header-tile">
+        <WhatsAppMark />
+      </span>
+      <span className="overview-mini-tile overview-mini-tile--left">
+        <MessageSquareMore size={22} />
+      </span>
+      <span className="overview-mini-tile overview-mini-tile--right">
+        <i />
+        <i />
+        <i />
+      </span>
+    </div>
+  );
+}
+
+function MetricGlyph({ kind }: { kind: string }) {
+  if (kind === 'Total de contatos')
+    return (
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="11" r="8" fill="currentColor" />
+        <path d="M5 36v-5c0-7 6-10 15-10s15 3 15 10v5H5Z" fill="currentColor" />
+      </svg>
+    );
+  if (kind === 'Mensagens enviadas')
+    return (
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <path d="M4 17.5 35 4 28.5 36 18 25 4 21Z" fill="currentColor" />
+        <path
+          d="m10 20 18-9-10 14 1 7"
+          stroke="#e9f9ff"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      </svg>
+    );
+  if (kind === 'Respostas')
+    return (
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <path
+          d="M5 16c0-7 4-10 15-10s15 3 15 10v7c0 6-4 9-15 9h-5l-7 5 1-8c-3-2-4-5-4-9Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+        <circle cx="15" cy="19" r="2" fill="currentColor" />
+        <circle cx="25" cy="19" r="2" fill="currentColor" />
+      </svg>
+    );
+  return <Check />;
+}
+
 export default function Overview({
   data,
   navigate,
+  onCampaign,
+  onAddAccount,
+  onImport,
 }: {
   data: State & { simulation: boolean };
-  navigate: (tab: 'Contatos' | 'Campanhas' | 'Conversas' | 'Contas WhatsApp') => void;
+  navigate: (
+    tab:
+      'Contatos' | 'Campanhas' | 'Conversas' | 'Contas WhatsApp' | 'Atendimento' | 'Configurações',
+  ) => void;
+  onCampaign: () => void;
+  onAddAccount: () => void;
+  onImport: () => void;
 }) {
   const { t, locale } = useLanguage();
-  const eligible = data.contacts.filter((c) => c.consent && !c.optedOut);
-  const outbound = data.messages.filter((m) => m.direction === 'out');
-  const format = (value: number) => value.toLocaleString(locale);
-  const steps = [
+  const stats = overviewData(data, data.simulation);
+  const number = (value: number) => value.toLocaleString(locale);
+  const rate = (value: number) =>
+    value.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+  function trend(value: { recent: number; percent: number | null }) {
+    return value.percent === null ? (
+      <>
+        <span className="overview-trend-number">{number(value.recent)}</span>{' '}
+        {t('nos últimos 7 dias')}
+      </>
+    ) : (
+      <>
+        <ArrowUpRight size={14} />
+        <span className="overview-trend-number">
+          {value.percent > 0 ? '+' : ''}
+          {rate(value.percent)}
+        </span>{' '}
+        <span>{t('vs. últimos 7 dias')}</span>
+      </>
+    );
+  }
+  const metrics = [
     {
-      title: 'Conecte seu WhatsApp',
-      desc: 'Adicione seu número e configure sua conta oficial.',
-      done: data.accounts.length > 0,
-      icon: Smartphone,
-      to: 'Contas WhatsApp' as const,
-    },
-    {
-      title: 'Conheça seu público',
-      desc: 'Importe seus contatos e registre as permissões.',
-      done: eligible.length > 0,
+      title: 'Total de contatos',
+      value: stats.contacts,
       icon: Users,
-      to: 'Contatos' as const,
+      tone: 'green',
+      detail: trend(stats.contactChange),
     },
     {
-      title: 'Comece a conversar',
-      desc: 'Crie sua primeira campanha com um modelo aprovado.',
-      done: data.campaigns.length > 0,
+      title: 'Mensagens enviadas',
+      value: stats.sent,
       icon: Send,
-      to: 'Campanhas' as const,
+      tone: 'blue',
+      detail: trend(stats.sentChange),
+    },
+    {
+      title: 'Entregues',
+      value: stats.delivered,
+      icon: Check,
+      tone: 'cyan',
+      detail: (
+        <>
+          <span className="overview-trend-number">{rate(stats.deliveryRate)}</span>{' '}
+          {t('taxa de entrega')}
+        </>
+      ),
+    },
+    {
+      title: 'Respostas',
+      value: stats.replies,
+      icon: MessageSquareMore,
+      tone: 'purple',
+      detail: (
+        <>
+          <span className="overview-trend-number">{rate(stats.replyRate)}</span>{' '}
+          {t('taxa de resposta')}
+        </>
+      ),
     },
   ];
+  const actions = [
+    {
+      title: 'Adicionar número WhatsApp',
+      description: 'Conecte seu número comercial pela API oficial.',
+      icon: Smartphone,
+      tone: 'green',
+      action: onAddAccount,
+    },
+    {
+      title: 'Importar contatos',
+      description: 'Envie CSV/TXT e organize seu público.',
+      icon: Users,
+      tone: 'blue',
+      action: onImport,
+    },
+    {
+      title: 'Criar campanha',
+      description: 'Envie modelos de mensagem para seus contatos.',
+      icon: Send,
+      tone: 'purple',
+      action: onCampaign,
+    },
+    {
+      title: 'Configurar automação',
+      description: 'Respostas automáticas e atendimento ao cliente.',
+      icon: Bot,
+      tone: 'orange',
+      action: () => navigate('Atendimento'),
+    },
+  ];
+  function activityIcon(text: string): { icon: LucideIcon; tone: string } {
+    if (text.startsWith('Importação')) return { icon: Users, tone: 'blue' };
+    if (text.startsWith('Campanha')) return { icon: Send, tone: 'green' };
+    if (text.includes('atendimento') || text.includes('automática'))
+      return { icon: MessageSquareMore, tone: 'blue' };
+    return { icon: Check, tone: 'green' };
+  }
+  function relative(at: string) {
+    const minutes = Math.round((Date.parse(at) - Date.now()) / 60000);
+    const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+    if (Math.abs(minutes) < 60) return formatter.format(minutes, 'minute');
+    if (Math.abs(minutes) < 1440) return formatter.format(Math.round(minutes / 60), 'hour');
+    return new Date(at).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+  }
   return (
-    <>
-      <section className="workspace-welcome">
-        <div className="workspace-welcome-copy">
-          <span className="workspace-welcome-tag">
-            <Sparkles size={13} />
-            {t('Menos tarefas. Mais conexões.')}
-          </span>
-          <h2>
-            {t('Cada conversa,')}
-            <br />
-            <span>{t('uma nova oportunidade.')}</span>
-          </h2>
-          <p>
-            {t('Transforme sua comunicação em relacionamentos. Sua próxima conversa começa aqui.')}
+    <div className="overview-design">
+      <section className="overview-header">
+        <div className="overview-header-copy">
+          <p className="overview-eyebrow">WHATS BOT PRO</p>
+          <h1>{t('Sua operação em um só lugar')}</h1>
+          <p className="overview-subtitle">
+            {t('Contatos, campanhas e automação. Acompanhe suas atividades em tempo real.')}
           </p>
-          <button onClick={() => navigate('Contatos')}>
-            {t('Explorar meus contatos')}
-            <ArrowRight size={17} />
-          </button>
         </div>
-        <div className="workspace-welcome-art" aria-hidden="true">
-          <div className="workspace-orbit workspace-orbit--outer" />
-          <div className="workspace-orbit workspace-orbit--inner" />
-          <div className="workspace-orbit-center">
-            <WhatsAppMark />
-          </div>
-          <div className="workspace-orbit-chip workspace-orbit-chip--top">
-            <CheckCheck size={18} />
-            {t('Conexões que importam')}
-          </div>
-          <div className="workspace-orbit-chip workspace-orbit-chip--bottom">
-            <Users size={18} />
-            <strong>{format(data.contacts.length)}</strong>
-            {t('Contatos')}
-          </div>
-          <span className="workspace-art-spark workspace-art-spark--one" />
-          <span className="workspace-art-spark workspace-art-spark--two" />
-        </div>
+        <HeaderArtwork />
+        <button className="overview-new-campaign" onClick={onCampaign}>
+          <span>＋</span>
+          {t('Nova campanha')}
+        </button>
       </section>
-      <div className="workspace-metrics">
-        <StatCard
-          label="Contatos na base"
-          value={format(data.contacts.length)}
-          detail={`${eligible.length} com permissão`}
-          icon={Users}
-        />
-        <StatCard
-          label="Envios reais aceitos"
-          value={format(
-            outbound.filter(
-              (m) => !m.simulated && !['failed', 'processing', 'skipped'].includes(m.status),
-            ).length,
-          )}
-          detail={`${outbound.filter((m) => m.simulated).length} simulações`}
-          icon={Send}
-          tone="blue"
-        />
-        <StatCard
-          label="Na fila"
-          value={format(data.jobs.filter((j) => j.status === 'pending').length)}
-          detail={`${data.campaigns.filter((c) => c.status === 'running').length} campanhas ativas`}
-          icon={Clock3}
-          tone="purple"
-        />
-        <StatCard
-          label="Mensagens recebidas"
-          value={format(data.messages.filter((m) => m.direction === 'in').length)}
-          detail={`${data.accounts.length} contas cadastradas`}
-          icon={MessageCircle}
-          tone="amber"
-        />
-      </div>
-      <div className="workspace-overview-grid">
-        <Card>
-          <MessageActivity messages={data.messages} />
-        </Card>
-        <Card className="workspace-recent">
-          <div className="workspace-section-heading">
-            <div>
-              <h2>{t('Atividade recente')}</h2>
-              <p>{t('Os últimos passos da sua operação.')}</p>
-            </div>
-            <span className="workspace-icon-muted">
-              <Clock3 size={18} />
+      <div className="overview-metrics">
+        {metrics.map((metric) => (
+          <Card key={metric.title} className={`overview-metric overview-tone--${metric.tone}`}>
+            <span className="overview-metric-icon">
+              <MetricGlyph kind={metric.title} />
             </span>
+            <div>
+              <h2>{t(metric.title)}</h2>
+              <strong>{number(metric.value)}</strong>
+              <p className="overview-metric-detail">{metric.detail}</p>
+            </div>
+          </Card>
+        ))}
+      </div>
+      <div className="overview-data-grid">
+        <Card className="overview-chart-card">
+          <MessageActivity
+            messages={data.messages}
+            variant="overview"
+            simulation={data.simulation}
+          />
+        </Card>
+        <Card className="overview-recent-card">
+          <div className="overview-section-heading">
+            <h2>{t('Atividade recente')}</h2>
+            <button onClick={() => navigate('Configurações')}>
+              {t('Ver tudo')}
+              <ArrowRight size={15} />
+            </button>
           </div>
           {data.audit.length ? (
-            <div className="workspace-timeline">
-              {data.audit.slice(0, 5).map((event, index) => (
-                <div key={`${event.at}-${index}`}>
-                  <span className="workspace-timeline-dot">
-                    <Check size={12} />
-                  </span>
-                  <div>
-                    <p>{t(event.text)}</p>
-                    <time>{new Date(event.at).toLocaleString(locale)}</time>
+            <div className="overview-activity-feed">
+              {data.audit.slice(0, 4).map((event, index) => {
+                const { icon: Icon, tone } = activityIcon(event.text);
+                return (
+                  <div
+                    className={`overview-activity-row overview-tone--${tone}`}
+                    key={`${event.at}-${index}`}
+                  >
+                    <span className="overview-activity-icon">
+                      <Icon size={24} />
+                    </span>
+                    <div>
+                      <strong>{t(event.text)}</strong>
+                      <time dateTime={event.at}>{relative(event.at)}</time>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
-            <Empty icon={Clock3}>{t('Sua atividade aparecerá aqui.')}</Empty>
+            <Empty>{t('Sua atividade aparecerá aqui.')}</Empty>
           )}
         </Card>
       </div>
-      <Card className="workspace-get-started">
-        <div className="workspace-section-heading">
-          <div>
-            <h2>{t('Seu próximo passo')}</h2>
-            <p>{t('Uma operação completa, em três etapas simples.')}</p>
-          </div>
-          <span className="workspace-setup-count">
-            {steps.filter((step) => step.done).length} / 3 <CheckCheck size={15} />
-          </span>
-        </div>
-        <div className="workspace-setup-grid">
-          {steps.map((step, index) => (
-            <button key={step.to} onClick={() => navigate(step.to)}>
-              <span className={`workspace-step-icon ${step.done ? 'is-complete' : ''}`}>
-                {step.done ? <Check size={20} /> : <step.icon size={21} />}
+      <div className="overview-quick-actions">
+        {actions.map((action) => (
+          <button
+            key={action.title}
+            className={`overview-quick-action overview-tone--${action.tone}`}
+            onClick={action.action}
+          >
+            <span className="overview-action-heading">
+              <span className="overview-action-icon">
+                {action.tone === 'green' ? <WhatsAppMark /> : <action.icon />}
               </span>
+              <strong>{t(action.title)}</strong>
+              <ArrowRight size={20} />
+            </span>
+            <span className="overview-action-bottom">
+              <span>{t(action.description)}</span>
               <span>
-                <small>
-                  {t('Etapa')} 0{index + 1}
-                </small>
-                <strong>{t(step.title)}</strong>
-                <p>{t(step.desc)}</p>
+                <ArrowRight size={21} />
               </span>
-              <ArrowUpRight size={17} />
-            </button>
-          ))}
-        </div>
-      </Card>
-    </>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

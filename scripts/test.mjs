@@ -15,13 +15,20 @@ const env = {
   META_VERIFY_TOKEN: 'integration-verify-token',
   DATA_DIR: mkdtempSync(path.join(tmpdir(), 'whatsbot-test-')),
   TEST_URL: url,
+  OUTREACH_DISABLE_AUTOSTART: 'true',
 };
 const server = spawn(
   process.execPath,
   ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', port],
   { env, stdio: ['ignore', 'pipe', 'pipe'] },
 );
+const outreach = spawn(process.execPath, ['scripts/outreach-worker.mjs'], {
+  env,
+  stdio: ['ignore', 'pipe', 'pipe'],
+});
 let output = '';
+outreach.stdout.on('data', (c) => (output += c));
+outreach.stderr.on('data', (c) => (output += c));
 server.stdout.on('data', (c) => (output += c));
 server.stderr.on('data', (c) => (output += c));
 try {
@@ -45,4 +52,5 @@ try {
   process.exitCode = 1;
 } finally {
   server.kill();
+  outreach.kill();
 }

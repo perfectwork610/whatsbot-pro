@@ -1,3 +1,4 @@
+import { greetingText } from '@/lib/greeting-text';
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { audit, read, update } from '@/lib/store';
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest) {
               audit(s, `Descadastro solicitado por ${contact.phone}.`);
             } else if (
               s.settings.botEnabled &&
+              account.enabled !== false &&
               firstInWindow &&
               !contact.optedOut &&
               Date.now() - Date.parse(createdAt) < 86400000
@@ -111,7 +113,11 @@ export async function POST(req: NextRequest) {
                 id: crypto.randomUUID(),
                 contactId: contact.id,
                 accountId: account.id,
-                text: s.settings.greeting,
+                text: greetingText(
+                  s.settings.greeting,
+                  contact.name,
+                  s.workspace?.name || 'WhatsBot Pro',
+                ),
               };
               s.messages.push({
                 ...reply,

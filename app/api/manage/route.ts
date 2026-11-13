@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { audit, read, update } from '@/lib/store';
+import { audit, read, update, migrateLegacyOutreach } from '@/lib/store';
 import { graph, send, simulation } from '@/lib/whatsapp';
 import { randomInt } from 'node:crypto';
+import { greetingText } from '@/lib/greeting-text';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 const text = (v: unknown, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -11,6 +12,7 @@ function required(v: unknown, label: string, max = 200) {
   return result;
 }
 export async function GET() {
+  migrateLegacyOutreach();
   const s = read();
   return NextResponse.json(
     {
@@ -38,16 +40,18 @@ export async function POST(req: NextRequest) {
         let added = 0,
           duplicates = 0,
           invalid = 0;
+        const existingPhones = new Set(s.contacts.map((contact) => contact.phone));
         for (const row of b.rows) {
           const phone = text(row.phone).replace(/[\s()+.\-]/g, '');
           if (!/^[1-9]\d{7,14}$/.test(phone)) {
             invalid++;
             continue;
           }
-          if (s.contacts.some((c) => c.phone === phone)) {
+          if (existingPhones.has(phone)) {
             duplicates++;
             continue;
           }
+          existingPhones.add(phone);
           const source = text(row.source, 500);
           s.contacts.push({
             id: crypto.randomUUID(),
@@ -63,6 +67,34 @@ export async function POST(req: NextRequest) {
         audit(s, `Importação: ${added} novos, ${duplicates} duplicados, ${invalid} inválidos.`);
         return { added, duplicates, invalid };
       });
+    } else if (b.action === 'contact-update') {
+      const name = required(b.name, 'Nome');
+      const phone = required(b.phone, 'Telefone').replace(/[\s()+.\-]/g, '');
+      if (!/^[1-9]\d{7,14}$/.test(phone))
+        throw new Error('Informe um telefone internacional válido com código do país.');
+      if (
+        !Array.isArray(b.lists) ||
+        b.lists.length > 20 ||
+        b.lists.some(
+          (list: unknown) => typeof list !== 'string' || !list.trim() || list.length > 60,
+        )
+      )
+        throw new Error('Listas inválidas.');
+      update((s) => {
+        const contact = s.contacts.find((c) => c.id === b.id);
+        if (!contact) throw new Error('Contato inexistente.');
+        if (s.contacts.some((c) => c.id !== contact.id && c.phone === phone))
+          throw new Error('Número já cadastrado.');
+        // Consent evidence belongs to the original number and cannot be transferred.
+        if (contact.phone !== phone) {
+          contact.consent = false;
+          contact.source = '';
+        }
+        contact.name = name;
+        contact.phone = phone;
+        contact.lists = [...new Set<string>(b.lists.map((list: string) => list.trim()))];
+        audit(s, 'Contato atualizado.');
+      });
     } else if (b.action === 'consent') {
       update((s) => {
         const c = s.contacts.find((c) => c.id === b.id);
@@ -77,13 +109,22 @@ export async function POST(req: NextRequest) {
     } else if (b.action === 'account') {
       const name = required(b.name, 'Nome');
       const testAccount = b.testAccount === true;
-      if (testAccount && !simulation()) throw new Error('Contas de teste só podem ser criadas na simulação.');
+      if (testAccount && !simulation())
+        throw new Error('Contas de teste só podem ser criadas na simulação.');
       const displayPhone = text(b.displayPhone).replace(/[\s()+.\-]/g, '');
-      if (displayPhone && !/^[1-9]\d{7,14}$/.test(displayPhone)) throw new Error('Informe um telefone internacional válido com código do país.');
-      const phoneId = testAccount ? `9${randomInt(100000000000, 999999999999)}` : required(b.phoneId, 'Phone Number ID');
-      const tokenEnv = testAccount ? 'WA_TOKEN_SIMULATION' : required(b.tokenEnv, 'Variável do token');
+      if (displayPhone && !/^[1-9]\d{7,14}$/.test(displayPhone))
+        throw new Error('Informe um telefone internacional válido com código do país.');
+      const phoneId = testAccount
+        ? `9${randomInt(100000000000, 999999999999)}`
+        : required(b.phoneId, 'Phone Number ID');
+      const tokenEnv = testAccount
+        ? 'WA_TOKEN_SIMULATION'
+        : required(b.tokenEnv, 'Variável do token');
       const wabaId = testAccount ? '0' : required(b.wabaId, 'WABA ID');
-      if (!/^\d+$/.test(phoneId) || !/^\d+$/.test(wabaId)) throw new Error('Phone Number ID e WABA ID são identificadores numéricos da Meta, não seu telefone.');
+      if (!/^\d+$/.test(phoneId) || !/^\d+$/.test(wabaId))
+        throw new Error(
+          'Phone Number ID e WABA ID são identificadores numéricos da Meta, não seu telefone.',
+        );
       if (
         !/^\d+$/.test(phoneId) ||
         !/^\d+$/.test(wabaId) ||
@@ -102,12 +143,43 @@ export async function POST(req: NextRequest) {
           wabaId,
           tokenEnv,
           dailyLimit,
-          ...(testAccount ? { simulationOnly: true, ...(displayPhone ? { displayPhone } : {}) } : {}),
+          ...(testAccount
+            ? { simulationOnly: true, ...(displayPhone ? { displayPhone } : {}) }
+            : {}),
           templates: simulation()
             ? [{ name: 'hello_world', language: 'en_US', status: 'APPROVED' }]
             : [],
         });
         audit(s, `Conta ${name} cadastrada.`);
+      });
+    } else if (b.action === 'account-update') {
+      update((s) => {
+        const account = s.accounts.find((a) => a.id === b.id);
+        if (!account) throw new Error('Conta inexistente.');
+        if (b.name !== undefined) account.name = required(b.name, 'Nome');
+        if (b.dailyLimit !== undefined) {
+          const limit = Number(b.dailyLimit);
+          if (!Number.isInteger(limit) || limit < 1 || limit > 100000)
+            throw new Error('Limite local inválido.');
+          account.dailyLimit = limit;
+        }
+        if (b.displayPhone !== undefined) {
+          const phone = text(b.displayPhone).replace(/[\s()+.\-]/g, '');
+          if (phone && !/^[1-9]\d{7,14}$/.test(phone))
+            throw new Error('Informe um telefone internacional válido com código do país.');
+          account.displayPhone = phone;
+        }
+        if (b.enabled !== undefined) {
+          if (typeof b.enabled !== 'boolean') throw new Error('Valor inválido.');
+          account.enabled = b.enabled;
+          if (!b.enabled)
+            s.campaigns
+              .filter((c) => c.accountId === account.id && c.status === 'running')
+              .forEach((c) => {
+                c.status = 'paused';
+              });
+        }
+        audit(s, 'Configurações da conta atualizadas.');
       });
     } else if (b.action === 'sync') {
       const account = read().accounts.find((a) => a.id === b.id);
@@ -129,6 +201,8 @@ export async function POST(req: NextRequest) {
         audit(s, `Modelos sincronizados: ${account.name}.`);
       });
     } else if (b.action === 'campaign') {
+      if (b.mode === 'sequential')
+        throw new Error('Use o robô de contato individual com conexão QR.');
       const name = required(b.name, 'Nome');
       const delay = Number(b.delay);
       if (!Number.isInteger(delay) || delay < 5 || delay > 86400)
@@ -136,7 +210,10 @@ export async function POST(req: NextRequest) {
       update((s) => {
         const a = s.accounts.find((a) => a.id === b.accountId);
         if (!a) throw new Error('Escolha uma conta.');
-        if (a.simulationOnly && !simulation()) throw new Error('Esta conta é apenas de teste. Conecte uma conta oficial para envios reais.');
+        if (a.simulationOnly && !simulation())
+          throw new Error(
+            'Esta conta é apenas de teste. Conecte uma conta oficial para envios reais.',
+          );
         const t = a.templates.find(
           (t) => t.name === b.template && t.language === b.language && t.status === 'APPROVED',
         );
@@ -158,7 +235,7 @@ export async function POST(req: NextRequest) {
           parameters: Array.isArray(b.parameters)
             ? b.parameters.map((p: unknown) => text(p, 1024)).slice(0, 20)
             : [],
-          mode: b.mode === 'sequential' ? 'sequential' : 'bulk',
+          mode: 'bulk',
           delay,
           status: 'draft',
           createdAt: new Date().toISOString(),
@@ -178,10 +255,39 @@ export async function POST(req: NextRequest) {
         const c = s.campaigns.find((c) => c.id === b.id);
         if (!c) throw new Error('Campanha inexistente.');
         if (!['running', 'paused'].includes(b.status)) throw new Error('Status inválido.');
+        if (
+          b.status === 'running' &&
+          s.accounts.find((a) => a.id === c.accountId)?.enabled === false
+        )
+          throw new Error('Esta conta está inativa. Ative a conta para enviar mensagens.');
         if (!s.jobs.some((j) => j.campaignId === c.id && j.status === 'pending'))
           throw new Error('Não há envios pendentes. Falhas exigem revisão antes de nova campanha.');
         c.status = b.status;
         audit(s, `Campanha ${c.name}: ${c.status}.`);
+      });
+    } else if (b.action === 'workspace-settings') {
+      const name = required(b.name, 'Nome do espaço de trabalho', 100);
+      const timeZone = required(b.timeZone, 'Fuso horário', 100);
+      try {
+        new Intl.DateTimeFormat('en', { timeZone }).format();
+      } catch {
+        throw new Error('Fuso horário inválido.');
+      }
+      if (
+        !['en', 'pt-BR'].includes(b.language) ||
+        typeof b.keepCampaignLogs !== 'boolean' ||
+        typeof b.notifyActivity !== 'boolean'
+      )
+        throw new Error('Preferências inválidas.');
+      update((s) => {
+        s.workspace = {
+          name,
+          timeZone,
+          language: b.language,
+          keepCampaignLogs: b.keepCampaignLogs,
+          notifyActivity: b.notifyActivity,
+        };
+        audit(s, 'Configurações do espaço de trabalho atualizadas.');
       });
     } else if (b.action === 'settings') {
       update((s) => {
@@ -197,6 +303,8 @@ export async function POST(req: NextRequest) {
       const a = s.accounts.find((a) => a.id === b.accountId);
       const body = required(b.text, 'Mensagem', 4000);
       if (!c || !a || c.optedOut) throw new Error('Contato ou conta indisponível.');
+      if (a.enabled === false)
+        throw new Error('Esta conta está inativa. Ative a conta para enviar mensagens.');
       if (
         !s.messages.some(
           (m) =>
@@ -237,6 +345,44 @@ export async function POST(req: NextRequest) {
         );
         throw e;
       }
+    } else if (b.action === 'conversation') {
+      update((s) => {
+        if (
+          !s.contacts.some((c) => c.id === b.contactId) ||
+          !s.accounts.some((a) => a.id === b.accountId)
+        )
+          throw new Error('Selecione contato e conta.');
+        const key = b.accountId + ':' + b.contactId;
+        const meta = s.conversations?.[key] || {
+          status: 'open' as const,
+          starred: false,
+          tags: [],
+        };
+        if (b.status !== undefined) {
+          if (!['open', 'progress', 'resolved'].includes(b.status))
+            throw new Error('Status inválido.');
+          meta.status = b.status;
+        }
+        if (b.starred !== undefined) {
+          if (typeof b.starred !== 'boolean') throw new Error('Valor inválido.');
+          meta.starred = b.starred;
+        }
+        if (b.tags !== undefined) {
+          if (
+            !Array.isArray(b.tags) ||
+            b.tags.length > 10 ||
+            b.tags.some((tag: unknown) => typeof tag !== 'string' || !tag.trim() || tag.length > 40)
+          )
+            throw new Error('Etiquetas inválidas.');
+          meta.tags = [...new Set<string>(b.tags.map((tag: string) => tag.trim()))];
+        }
+        if (b.read !== undefined) {
+          if (typeof b.read !== 'boolean') throw new Error('Valor inválido.');
+          meta.readAt = b.read ? new Date().toISOString() : '1970-01-01T00:00:00.000Z';
+        }
+        s.conversations ||= {};
+        s.conversations[key] = meta;
+      });
     } else if (b.action === 'simulate-inbound') {
       if (!simulation()) throw new Error('Disponível apenas na simulação.');
       update((s) => {
@@ -258,13 +404,13 @@ export async function POST(req: NextRequest) {
           simulated: true,
           createdAt: new Date().toISOString(),
         });
-        if (s.settings.botEnabled && !c.optedOut)
+        if (s.settings.botEnabled && !c.optedOut && a.enabled !== false)
           s.messages.push({
             id: crypto.randomUUID(),
             contactId: c.id,
             accountId: a.id,
             direction: 'out',
-            text: s.settings.greeting,
+            text: greetingText(s.settings.greeting, c.name, s.workspace?.name || 'WhatsBot Pro'),
             status: 'simulated',
             simulated: true,
             createdAt: new Date().toISOString(),

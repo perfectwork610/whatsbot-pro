@@ -1,7 +1,8 @@
 import type { Account } from './types';
 export const simulation = () => process.env.WHATSAPP_MODE !== 'live';
 export async function graph(account: Account, endpoint: string, body?: unknown) {
-  if (account.simulationOnly) throw new Error('Esta conta é apenas de teste. Conecte uma conta oficial para envios reais.');
+  if (account.simulationOnly)
+    throw new Error('Esta conta é apenas de teste. Conecte uma conta oficial para envios reais.');
   const token = process.env[account.tokenEnv];
   if (!token) throw new Error(`Configure ${account.tokenEnv} no servidor.`);
   const version = process.env.META_GRAPH_VERSION;
@@ -20,6 +21,8 @@ export async function graph(account: Account, endpoint: string, body?: unknown) 
   return data;
 }
 export async function send(account: Account, phone: string, payload: object): Promise<string> {
+  if (account.enabled === false)
+    throw new Error('Esta conta está inativa. Ative a conta para enviar mensagens.');
   if (simulation()) return `sim_${crypto.randomUUID()}`;
   const data = await graph(account, `${account.phoneId}/messages`, {
     messaging_product: 'whatsapp',
