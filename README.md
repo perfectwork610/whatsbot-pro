@@ -1,0 +1,81 @@
+# WhatsBot Pro
+
+Portuguese WhatsApp operations app built from the client conversation: persistent contacts, campaign queues, individual outreach sequences, inbox, automatic greeting, official Cloud API adapter, signed webhooks, and CSV reports. Defaults to **simulation**, which never sends WhatsApp messages.
+
+## Start
+
+Requires **Node.js 24.15+** for built-in `node:sqlite`.
+
+```powershell
+npm install
+npm run setup
+npm run dev
+```
+
+Open http://localhost:3000. Sign in as **admin** using **ADMIN_PASSWORD** from the generated `.env.local`. In a second terminal run:
+
+```powershell
+npm run worker
+```
+
+The worker operates independently of the browser. Set APP_URL to the exact browser origin if changing hostname or port, without a trailing slash. Restart both processes after environment changes. Setup preserves existing `.env.local` files. Webpack is selected because Turbopack's CSS subprocess failed in the original Windows environment.
+
+## Interface languages
+
+Use the **English / Português** selector in the top bar. The app uses the browser language on the first visit and remembers your selection on that browser. Navigation, forms, statuses, application notifications/errors, operation history, dates, numbers, and CSV column names follow the selection. Both English and Portuguese CSV headers can be imported in either interface language. Changing the interface language does not translate or modify customer messages, campaign content, saved greetings, account names, or approved template language codes.
+
+## Test the workflow
+
+1. **Contas WhatsApp**: add a test account with numeric Phone Number ID and WABA ID (e.g. 12345 and 67890), token variable `WA_TOKEN_PRIMARY`, and a local daily ceiling. Simulation supplies `hello_world` / `en_US` without needing a real token.
+2. **Contatos**: add a contact or download the CSV example. CSV supports comma/semicolon delimiters, quoted fields, and BOM. Include international phone numbers with country codes. Duplicate numbers are ignored and invalid numbers reported. Maximum 2 MB / 10,000 rows per import; XLSX is not supported.
+3. Record recipient consent and its source/date. A missing source leaves the contact ineligible. Reimporting a number never restores an unsubscribe.
+4. **Campanhas** creates a bulk campaign; **Robô de envio** creates a one-by-one sequence. Choose an explicit sender account, approved template, recipients, and interval. Text body parameters go one per line; `{{nome}}` personalizes the name. Media, header, and button template parameters are not included in this version.
+5. Review and start the draft. Keep the worker running. Pause/resume controls affect pending sends; an already reserved send may finish. Simulated messages never appear as real deliveries.
+6. **Conversas**: select a contact/account and simulate an inbound message. Reply within its service window. Use SAIR to test suppression. **Atendimento** enables a first-message greeting, not an AI sales agent.
+7. **Relatórios** exports messages. **Configurações** includes the operation history.
+
+The app stores contacts in its database; it does not modify a phone's address book, scrape business directories, extract phone numbers from screenshots, or control personal WhatsApp Web sessions. The tiny embedded screenshots in the chat do not establish a reliable extraction workflow. Neither workflow rotates accounts to evade restrictions or supports unsolicited spam.
+
+## Connect real accounts
+
+Account verification, approved templates, billing, sending eligibility, and actual daily limits are controlled by Meta. Software cannot provide verified accounts or guarantee 3,000–5,000 daily sends.
+
+1. The account owner configures a Meta business portfolio, WhatsApp Business Account (WABA), app, registered number, and access token with WhatsApp permissions.
+2. Set META_GRAPH_VERSION to the active version supported by the Meta app. Set WA_TOKEN_PRIMARY to the actual token in `.env.local`. Use additional WA_TOKEN_SALES, etc., for other authorized numbers. Never put actual tokens in the account form or NEXT_PUBLIC_ variables.
+3. Configure META_APP_SECRET and a long random META_VERIFY_TOKEN. Expose the app over HTTPS. Set the Meta callback to `https://your-domain/api/webhook` and subscribe to message events. GET verifies the challenge token; POST requires the signed original body.
+4. Set APP_URL to `https://your-domain`, WHATSAPP_MODE to `live`, and restart the server and worker.
+5. Add real account IDs and **Sincronizar modelos**. This retrieves the first 100 templates; pagination beyond 100 and template creation are not included. Campaigns require APPROVED templates.
+6. Test one authorized recipient and verify replies/delivery events before broader use. Configure a conservative local ceiling within the actual Meta allowance. This version does not automatically retrieve Meta account quality or messaging-limit eligibility.
+
+Official references: [Meta Cloud API examples](https://github.com/fbsamples/whatsapp-api-examples), [Meta webhook signature example](https://github.com/fbsamples/whatsapp-api-examples/tree/main/signature-validation-with-webhooks-payloads), [Cloud API documentation](https://developers.facebook.com/docs/whatsapp/cloud-api/).
+
+## Production and data
+
+```powershell
+npm run build
+npm run start
+# Separate supervised process:
+npm run worker
+```
+
+Deploy as a **single persistent Node.js instance** with durable local disk, an HTTPS reverse proxy, and a process supervisor. This is a single-operator pilot, not a multi-tenant SaaS. HTTP Basic authentication protects the dashboard and management API; production refuses dashboard access without ADMIN_PASSWORD. Use HTTPS. Worker requests require a separate WORKER_SECRET. Webhook authentication uses the Meta app secret. Management writes validate the browser origin. Do not expose development mode publicly.
+
+SQLite is stored in `data/whatsbot.sqlite`, overridable with DATA_DIR. Transactions reserve work before the external send. Concurrent worker requests cannot reserve the same job. The queue enforces an interval shared by campaigns on each account and a rolling 24-hour local ceiling. Permission is checked again immediately before dispatch. Manual service replies and greetings require a recent inbound message on that account.
+
+The inbox distinguishes API acceptance from sent/delivered/read webhook statuses. Signed inbound IDs are deduplicated. SAIR, PARAR, STOP, and CANCELAR suppress outbound messages. An inbound inquiry alone never grants consent for campaigns.
+
+Failures pause the campaign without automatic retries. A timeout may mean Meta accepted a message without returning its ID. If the process stops after reservation, the job remains `processing` and blocks the account queue: verify the provider outcome before an operator reconciles the database. The UI flags uncertain jobs; a reconciliation UI is not included. Interrupted manual/greeting sends can likewise need review. Do not blindly recreate campaigns after a timeout.
+
+Webhooks persist inbound events before responding but await greeting delivery; move greetings to a separate durable reply queue for larger webhook volume. This pilot stores state in one transactional JSON row and returns the full dataset to the operator. Before sustained high-volume or multi-operator use, add normalized tables, paginated APIs, a dedicated queue, per-user access control, and retention rules. Real Meta delivery and a 5,000-recipient load test remain unverified without client credentials.
+
+Back up with SQLite's online backup API, or stop both processes before copying the database. Do not copy only the `.sqlite` file during WAL writes. Protect backups because contacts and conversations contain personal data.
+
+## Verification
+
+```powershell
+npm run typecheck
+npm run build
+npm test
+```
+
+The integration suite starts a local production server on port 3102 (override TEST_PORT), uses a fresh temporary SQLite directory, and forces simulation. It checks authentication, origin protection, imports, consent, concurrent reservation, personalization, service windows, signed and duplicate webhooks, greetings, opt-outs, queue completion, and send ceilings. It never modifies the normal app database. Temporary databases remain in the OS temp directory for inspection.

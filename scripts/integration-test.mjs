@@ -1,0 +1,71 @@
+import assert from 'node:assert/strict';
+import { createHmac } from 'node:crypto';
+const base = process.env.TEST_URL || 'http://127.0.0.1:3101';
+const password = process.env.TEST_ADMIN_PASSWORD || 'integration-admin-password';
+const workerSecret = process.env.TEST_WORKER_SECRET || 'integration-worker-secret';
+const appSecret = process.env.TEST_APP_SECRET || 'integration-app-secret';
+const auth = `Basic ${Buffer.from(`admin:${password}`).toString('base64')}`;
+let checks = 0;
+function check(condition, label) { assert.ok(condition,label); checks++; console.log(`PASS ${label}`); }
+async function state() { const r=await fetch(`${base}/api/manage`,{headers:{Authorization:auth}});assert.equal(r.status,200);return r.json(); }
+async function action(body,expected=200) { const r=await fetch(`${base}/api/manage`,{method:'POST',headers:{Authorization:auth,Origin:base,'Content-Type':'application/json'},body:JSON.stringify(body)});assert.equal(r.status,expected,await r.clone().text());return r.json(); }
+async function tick() { const r=await fetch(`${base}/api/worker`,{method:'POST',headers:{Authorization:`Bearer ${workerSecret}`}});assert.equal(r.status,200);return r.json(); }
+async function webhook(body,signed=true) { const raw=JSON.stringify(body);const r=await fetch(`${base}/api/webhook`,{method:'POST',headers:{'Content-Type':'application/json',...(signed?{'x-hub-signature-256':`sha256=${createHmac('sha256',appSecret).update(raw).digest('hex')}`}:{})},body:raw});return r; }
+const s0=await state();
+check(s0.simulation,'test server is simulation-only');
+check((await fetch(`${base}/api/manage`)).status===401,'dashboard API requires authentication');
+check((await fetch(`${base}/api/worker`,{method:'POST'})).status===401,'worker requires separate secret');
+check((await fetch(`${base}/api/manage`,{method:'POST',headers:{Authorization:auth,Origin:'https://evil.example','Content-Type':'application/json'},body:'{}'})).status===403,'cross-origin writes rejected');
+const seed=String(Date.now()).slice(-9);const phone1=`5511${seed}1`;const phone2=`5511${seed}2`;const phone3=`5511${seed}3`;
+const result=await action({action:'contacts',rows:[{name:'Test Authorized',phone:phone1,consent:true,source:'Integration opt-in'},{name:'Test No Proof',phone:phone2,consent:true,source:''},{name:'Test Unsubscribe',phone:phone3,consent:true,source:'Integration opt-in'},{phone:'invalid'},{phone:phone1}]});
+check(result.result.added===3&&result.result.invalid===1&&result.result.duplicates===1,'import validates and deduplicates phone numbers');
+let s=await state();const c1=s.contacts.find(c=>c.phone===phone1);const c2=s.contacts.find(c=>c.phone===phone2);const c3=s.contacts.find(c=>c.phone===phone3);
+check(!c2.consent,'consent cannot be granted without evidence');
+const phoneId=`99${seed}`;
+await action({action:'account',name:`Test ${seed}`,phoneId,wabaId:'123456',tokenEnv:'WA_TOKEN_TEST',dailyLimit:1});s=await state();const account=s.accounts.find(a=>a.phoneId===phoneId);
+check(account.templates[0].name==='hello_world','simulation account has a test template');
+check(!('token' in account),'access tokens are not exposed by API');
+await action({action:'campaign',name:`Rejected ${seed}`,accountId:account.id,template:'hello_world',language:'en_US',delay:5,contactIds:[c2.id]},400);
+check(true,'campaign rejects recipients without consent');
+await action({action:'campaign',name:`Queue ${seed}`,accountId:account.id,template:'hello_world',language:'en_US',delay:5,contactIds:[c1.id,c3.id],mode:'sequential',parameters:['{{nome}}']});s=await state();const campaign=s.campaigns.find(c=>c.name===`Queue ${seed}`);
+await action({action:'consent',id:c3.id,consent:false});
+await action({action:'campaign-status',id:campaign.id,status:'running'});
+await Promise.all([tick(),tick(),tick()]);s=await state();
+check(s.messages.filter(m=>m.campaignId===campaign.id).length===1,'concurrent worker ticks reserve a job once');
+check(s.messages.find(m=>m.campaignId===campaign.id).simulated,'simulation records do not pretend to be real deliveries');
+check(s.messages.find(m=>m.campaignId===campaign.id).text.includes('Test Authorized'),'template parameters personalize contact name');
+await action({action:'consent',id:c3.id,consent:true,source:'Renewed test consent'});
+await new Promise(resolve=>setTimeout(resolve,5100));
+await tick();s=await state();
+check(s.jobs.find(j=>j.campaignId===campaign.id&&j.contactId===c3.id).status==='pending'&&s.messages.filter(m=>m.campaignId===campaign.id).length===1,'daily ceiling blocks an authorized recipient after interval expires');
+await action({action:'consent',id:c3.id,consent:false});
+await action({action:'reply',contactId:c1.id,accountId:account.id,text:'No window'},400);
+check(true,'free-form reply requires recent inbound message');
+await action({action:'settings',botEnabled:true,greeting:'Integration greeting'});
+const inboundId=`wamid.test.${seed}`;const inbound={entry:[{changes:[{value:{metadata:{phone_number_id:phoneId},contacts:[{wa_id:phone1,profile:{name:'Test'}}],messages:[{id:inboundId,from:phone1,type:'text',text:{body:'Hello'},timestamp:String(Math.floor(Date.now()/1000))}]}}]}]};
+check((await webhook(inbound,false)).status===401,'unsigned webhooks rejected');
+check((await webhook(inbound)).status===200,'valid signed webhook accepted');
+await webhook(inbound);s=await state();
+check(s.messages.filter(m=>m.providerId===inboundId).length===1,'webhook retries do not duplicate inbound messages');
+check(s.messages.filter(m=>m.contactId===c1.id&&m.text==='Integration greeting').length===1,'automatic greeting is sent once per window');
+const sentId=s.messages.find(m=>m.campaignId===campaign.id).providerId;
+await webhook({entry:[{changes:[{value:{metadata:{phone_number_id:phoneId},statuses:[{id:sentId,status:'read'}]}}]}]});
+await webhook({entry:[{changes:[{value:{metadata:{phone_number_id:phoneId},statuses:[{id:sentId,status:'sent'}]}}]}]});
+check((await state()).messages.find(m=>m.providerId===sentId).status==='read','out-of-order delivery events do not downgrade read status');
+await action({action:'reply',contactId:c1.id,accountId:account.id,text:'Manual test reply'});
+check((await state()).messages.some(m=>m.text==='Manual test reply'&&m.status==='simulated'),'manual reply works inside customer service window');
+inbound.entry[0].changes[0].value.messages[0]={id:`stop.${seed}`,from:phone1,type:'text',text:{body:'SAIR'},timestamp:String(Math.floor(Date.now()/1000))};
+await webhook(inbound);s=await state();
+check(s.contacts.find(c=>c.id===c1.id).optedOut,'inbound SAIR suppresses further messages');
+await action({action:'reply',contactId:c1.id,accountId:account.id,text:'Should not send'},400);
+check(true,'reply to opted-out contact rejected');
+const verify=await fetch(`${base}/api/webhook?hub.mode=subscribe&hub.verify_token=integration-verify-token&hub.challenge=challenge123`);
+check(verify.status===200&&await verify.text()==='challenge123','webhook verification handshake');
+// A separate account verifies suppression at send time, without waiting on a daily cap.
+await action({action:'account',name:`Suppression ${seed}`,phoneId:`98${seed}`,wabaId:'123456',tokenEnv:'WA_TOKEN_TEST',dailyLimit:10});s=await state();const a2=s.accounts.find(a=>a.phoneId===`98${seed}`);
+await action({action:'consent',id:c3.id,consent:true,source:'New permission'});
+await action({action:'campaign',name:`Suppression ${seed}`,accountId:a2.id,template:'hello_world',language:'en_US',delay:5,contactIds:[c3.id]});s=await state();const c4=s.campaigns.find(c=>c.name===`Suppression ${seed}`);
+await action({action:'campaign-status',id:c4.id,status:'running'});await action({action:'consent',id:c3.id,consent:false});await tick();s=await state();
+check(s.jobs.find(j=>j.campaignId===c4.id).status==='skipped','queued recipient is rechecked after unsubscribe');
+await tick();check((await state()).campaigns.find(c=>c.id===c4.id).status==='completed','queue completes after suppressed jobs are processed');
+console.log(`\n${checks} integration checks passed.`);
