@@ -1,4 +1,5 @@
 'use client';
+import DismissibleDialog from './dismissible-dialog';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   QrCode,
@@ -501,7 +502,7 @@ export default function OutreachPage({
           )}
         </p>
       </div>
-      <dialog ref={deleteDialog} className="outreach-dialog" aria-labelledby="outreach-delete-title">
+      <DismissibleDialog ref={deleteDialog} className="outreach-dialog" aria-labelledby="outreach-delete-title">
         <header>
           <h2 id="outreach-delete-title">{t('Excluir fila')}?</h2>
           <button disabled={busy} aria-label={t('Fechar formulário')} onClick={() => deleteDialog.current?.close()}><X size={20} /></button>
@@ -518,8 +519,8 @@ export default function OutreachPage({
             }
           }}><Trash2 size={16} />{t('Excluir fila')}</button>
         </footer>
-      </dialog>
-      <dialog
+      </DismissibleDialog>
+      <DismissibleDialog
         ref={connectionDialog}
         className="outreach-dialog"
         aria-labelledby="outreach-connection-title"
@@ -590,8 +591,8 @@ export default function OutreachPage({
             {t('Adicionar conexão')}
           </button>
         </form>
-      </dialog>
-      <dialog
+      </DismissibleDialog>
+      <DismissibleDialog
         ref={runDialog}
         className="outreach-dialog outreach-dialog--wide"
         aria-labelledby="outreach-run-title"
@@ -755,8 +756,8 @@ export default function OutreachPage({
             {t('Criar rascunho individual')}
           </button>
         </form>
-      </dialog>
-      <dialog
+      </DismissibleDialog>
+      <DismissibleDialog
         ref={detailDialog}
         className="outreach-dialog outreach-dialog--wide"
         aria-labelledby="outreach-detail-title"
@@ -818,7 +819,8 @@ export default function OutreachPage({
             'Uma entrega incerta nunca é reenviada automaticamente. Verifique a conversa e ignore o item após revisão para continuar.',
           )}
         </p>
-      </dialog>
+      </DismissibleDialog>
     </div>
   );
 }
+

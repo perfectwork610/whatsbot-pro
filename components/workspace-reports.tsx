@@ -1,4 +1,5 @@
 'use client';
+import DismissibleDialog from './dismissible-dialog';
 import { useId, useMemo, useRef, useState } from 'react';
 import {
   Area,
@@ -447,7 +448,7 @@ export default function WorkspaceReports({ data }: { data: State & { simulation:
           </button>
         </section>
       </div>
-      <dialog ref={dialog} className="reports-dialog" aria-labelledby="reports-dialog-title">
+      <DismissibleDialog ref={dialog} className="reports-dialog" aria-labelledby="reports-dialog-title">
         <header>
           <h2 id="reports-dialog-title">
             {t(detail === 'campaigns' ? 'Desempenho das campanhas' : 'Registro de mensagens')}
@@ -501,7 +502,8 @@ export default function WorkspaceReports({ data }: { data: State & { simulation:
             </footer>
           </>
         )}
-      </dialog>
+      </DismissibleDialog>
     </div>
   );
 }
+

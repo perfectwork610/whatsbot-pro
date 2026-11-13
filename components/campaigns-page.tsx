@@ -1,4 +1,5 @@
 'use client';
+import DismissibleDialog from './dismissible-dialog';
 import { useMemo, useRef, useState } from 'react';
 import {
   Send,
@@ -539,7 +540,7 @@ export default function CampaignsPage({
           </footer>
         )}
       </section>
-      <dialog className="campaigns-detail campaigns-remove-dialog" ref={removeDialog} aria-labelledby="campaign-remove-title">
+      <DismissibleDialog className="campaigns-detail campaigns-remove-dialog" ref={removeDialog} aria-labelledby="campaign-remove-title">
         <header>
           <h2 id="campaign-remove-title">{t('Remover campanha')}?</h2>
           <button disabled={busy} aria-label={t('Cancelar')} onClick={() => removeDialog.current?.close()}><X size={20} /></button>
@@ -561,8 +562,8 @@ export default function CampaignsPage({
             } else setRemoveError(true);
           }}><Trash2 size={16} />{t('Remover campanha')}</button>
         </footer>
-      </dialog>
-      <dialog
+      </DismissibleDialog>
+      <DismissibleDialog
         className="campaigns-detail"
         ref={dialog}
         aria-labelledby="campaign-detail-title"
@@ -636,7 +637,8 @@ export default function CampaignsPage({
             )}
           </>
         )}
-      </dialog>
+      </DismissibleDialog>
     </div>
   );
 }
+

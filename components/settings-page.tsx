@@ -1,4 +1,5 @@
 'use client';
+import DismissibleDialog from './dismissible-dialog';
 import { useRef, useState } from 'react';
 import {
   Settings,
@@ -440,7 +441,7 @@ export default function SettingsPage({
           <div className="settings-history-list">{entries()}</div>
         </section>
       </div>
-      <dialog
+      <DismissibleDialog
         ref={history}
         className="settings-history-dialog"
         aria-labelledby="settings-history-title"
@@ -458,7 +459,8 @@ export default function SettingsPage({
           onChange={(e) => setSearch(e.target.value)}
         />
         <div>{entries(true)}</div>
-      </dialog>
+      </DismissibleDialog>
     </div>
   );
 }
+

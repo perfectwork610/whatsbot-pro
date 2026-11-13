@@ -98,6 +98,7 @@ export default function Workspace() {
   const [busy, setBusy] = useState(false);
   const [consentContactId, setConsentContactId] = useState('');
   const modalPanel = useRef<HTMLDivElement>(null);
+  const modalBackdropPressed = useRef(false);
   useEffect(() => {
     if (!modal || !modalPanel.current) return;
     const panel = modalPanel.current;
@@ -508,7 +509,15 @@ export default function Workspace() {
         </main>
       </div>
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+          onPointerDown={(event) => {
+            modalBackdropPressed.current = event.target === event.currentTarget;
+          }}
+          onClick={(event) => {
+            if (modalBackdropPressed.current && event.target === event.currentTarget && !busy)
+              setModal(null);
+            modalBackdropPressed.current = false;
+          }}>
           <div
             ref={modalPanel}
             role="dialog"

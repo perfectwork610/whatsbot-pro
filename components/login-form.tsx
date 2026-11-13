@@ -1,4 +1,5 @@
 'use client';
+import DismissibleDialog from './dismissible-dialog';
 import { useRef, useState, type FormEvent } from 'react';
 import {
   ArrowRight,
@@ -217,7 +218,7 @@ export default function LoginForm() {
           </p>
         </div>
       </section>
-      <dialog
+      <DismissibleDialog
         ref={helpDialog}
         className="login-help"
         aria-labelledby="login-help-title"
@@ -247,7 +248,8 @@ export default function LoginForm() {
         <button className="login-submit" type="button" onClick={() => helpDialog.current?.close()}>
           {t('Entendi')}
         </button>
-      </dialog>
+      </DismissibleDialog>
     </main>
   );
 }
+

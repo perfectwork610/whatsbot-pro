@@ -1,4 +1,5 @@
 'use client';
+import DismissibleDialog from './dismissible-dialog';
 import { useEffect, useRef, useState } from 'react';
 import {
   Smartphone,
@@ -351,7 +352,7 @@ export default function AccountsPage({
           </button>
         </div>
       )}
-      <dialog
+      <DismissibleDialog
         ref={dialog}
         className="accounts-settings"
         aria-labelledby="account-settings-title"
@@ -488,7 +489,8 @@ export default function AccountsPage({
             )}
           </>
         )}
-      </dialog>
+      </DismissibleDialog>
     </div>
   );
 }
+

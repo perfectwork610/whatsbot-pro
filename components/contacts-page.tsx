@@ -1,4 +1,5 @@
 'use client';
+import DismissibleDialog from './dismissible-dialog';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Users,
@@ -540,7 +541,7 @@ export default function ContactsPage({
           </label>
         </footer>
       </section>
-      <dialog ref={removalDialog} className="contacts-editor contacts-remove-dialog" aria-labelledby="contacts-remove-title">
+      <DismissibleDialog ref={removalDialog} className="contacts-editor contacts-remove-dialog" aria-labelledby="contacts-remove-title">
         <header>
           <h2 id="contacts-remove-title">{t(removing.length === 1 ? 'Remover contato' : 'Remover contatos')}?</h2>
           <button disabled={busy} aria-label={t('Cancelar')} onClick={() => removalDialog.current?.close()}><X size={20} /></button>
@@ -561,8 +562,8 @@ export default function ContactsPage({
             } else setRemoveError(true);
           }}><Trash2 size={16} />{t('Remover')} ({number(removing.length)})</button>
         </footer>
-      </dialog>
-      <dialog
+      </DismissibleDialog>
+      <DismissibleDialog
         ref={editor}
         className="contacts-editor"
         onCancel={(e) => {
@@ -633,7 +634,8 @@ export default function ContactsPage({
             </button>
           </form>
         )}
-      </dialog>
+      </DismissibleDialog>
     </div>
   );
 }
+
