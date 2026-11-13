@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { audit, read, update } from '@/lib/store';
 import { graph, send, simulation } from '@/lib/whatsapp';
+import { randomInt } from 'node:crypto';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 const text = (v: unknown, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -75,9 +76,14 @@ export async function POST(req: NextRequest) {
       });
     } else if (b.action === 'account') {
       const name = required(b.name, 'Nome');
-      const phoneId = required(b.phoneId, 'Phone Number ID');
-      const tokenEnv = required(b.tokenEnv, 'Variável do token');
-      const wabaId = required(b.wabaId, 'WABA ID');
+      const testAccount = b.testAccount === true;
+      if (testAccount && !simulation()) throw new Error('Contas de teste só podem ser criadas na simulação.');
+      const displayPhone = text(b.displayPhone).replace(/[\s()+.\-]/g, '');
+      if (displayPhone && !/^[1-9]\d{7,14}$/.test(displayPhone)) throw new Error('Informe um telefone internacional válido com código do país.');
+      const phoneId = testAccount ? `9${randomInt(100000000000, 999999999999)}` : required(b.phoneId, 'Phone Number ID');
+      const tokenEnv = testAccount ? 'WA_TOKEN_SIMULATION' : required(b.tokenEnv, 'Variável do token');
+      const wabaId = testAccount ? '0' : required(b.wabaId, 'WABA ID');
+      if (!/^\d+$/.test(phoneId) || !/^\d+$/.test(wabaId)) throw new Error('Phone Number ID e WABA ID são identificadores numéricos da Meta, não seu telefone.');
       if (
         !/^\d+$/.test(phoneId) ||
         !/^\d+$/.test(wabaId) ||
@@ -96,6 +102,7 @@ export async function POST(req: NextRequest) {
           wabaId,
           tokenEnv,
           dailyLimit,
+          ...(testAccount ? { simulationOnly: true, ...(displayPhone ? { displayPhone } : {}) } : {}),
           templates: simulation()
             ? [{ name: 'hello_world', language: 'en_US', status: 'APPROVED' }]
             : [],
@@ -129,6 +136,7 @@ export async function POST(req: NextRequest) {
       update((s) => {
         const a = s.accounts.find((a) => a.id === b.accountId);
         if (!a) throw new Error('Escolha uma conta.');
+        if (a.simulationOnly && !simulation()) throw new Error('Esta conta é apenas de teste. Conecte uma conta oficial para envios reais.');
         const t = a.templates.find(
           (t) => t.name === b.template && t.language === b.language && t.status === 'APPROVED',
         );

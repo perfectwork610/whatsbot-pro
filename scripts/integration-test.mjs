@@ -161,6 +161,14 @@ const c2 = s.contacts.find((c) => c.phone === phone2);
 const c3 = s.contacts.find((c) => c.phone === phone3);
 check(!c2.consent, 'consent cannot be granted without evidence');
 const phoneId = `99${seed}`;
+await action({action:'account',name:'Invalid phone as ID',phoneId:'+5511999999999',wabaId:'123456',tokenEnv:'WA_TOKEN_TEST',dailyLimit:250},400);
+check(true,'actual phone number is not accepted as a Meta Phone Number ID');
+await action({action:'account',name:`Quick test ${seed}`,testAccount:true,displayPhone:'+55 (11) 99999-9999',dailyLimit:250});
+const quickAccount=(await state()).accounts.find(a=>a.name===`Quick test ${seed}`);
+check(quickAccount.simulationOnly&&/^\d+$/.test(quickAccount.phoneId)&&quickAccount.templates[0].name==='hello_world','test account needs no Meta IDs or token and includes its template');
+check(quickAccount.displayPhone==='5511999999999','optional test phone is normalized and stored as a label');
+await action({action:'account',name:'Invalid test phone',testAccount:true,displayPhone:'invalid',dailyLimit:250},400);
+check(true,'invalid optional phone is rejected');
 await action({
   action: 'account',
   name: `Test ${seed}`,

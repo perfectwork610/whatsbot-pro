@@ -14,6 +14,8 @@ export type Account = {
   wabaId: string;
   tokenEnv: string;
   dailyLimit: number;
+  simulationOnly?: boolean;
+  displayPhone?: string;
   templates: { name: string; language: string; status: string }[];
 };
 export type Campaign = {

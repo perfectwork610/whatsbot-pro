@@ -1,6 +1,7 @@
 import type { Account } from './types';
 export const simulation = () => process.env.WHATSAPP_MODE !== 'live';
 export async function graph(account: Account, endpoint: string, body?: unknown) {
+  if (account.simulationOnly) throw new Error('Esta conta é apenas de teste. Conecte uma conta oficial para envios reais.');
   const token = process.env[account.tokenEnv];
   if (!token) throw new Error(`Configure ${account.tokenEnv} no servidor.`);
   const version = process.env.META_GRAPH_VERSION;

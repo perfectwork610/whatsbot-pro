@@ -41,6 +41,7 @@ import './workspace.css';
 import WorkspaceInbox from '@/components/workspace-inbox';
 import WorkspaceReports from '@/components/workspace-reports';
 import WorkspaceService from '@/components/workspace-service';
+import AccountForm from '@/components/account-form';
 
 type Data = Omit<State, 'accounts'> & {
   simulation: boolean;
@@ -601,7 +602,7 @@ export default function Workspace() {
                     </div>
                     <div>
                       <h2 className="font-bold">{a.name}</h2>
-                      <p className="mt-1 text-xs text-slate-500">Phone Number ID: {a.phoneId}</p>
+                      <p className="mt-1 text-xs text-slate-500">{a.simulationOnly ? t('Conta de teste') : 'Phone Number ID: '+a.phoneId}{a.displayPhone ? ' · +'+a.displayPhone : ''}</p>
                     </div>
                   </div>
                   <div className="my-5 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-xs">
@@ -614,16 +615,16 @@ export default function Workspace() {
                     <div className="text-slate-500">
                       {t('Credencial')}
                       <p className="mt-1 font-bold text-slate-800">
-                        {a.configured ? t('Configurada no servidor') : t('Pendente')}
+                        {a.simulationOnly ? t('Não necessária na simulação') : a.configured ? t('Configurada no servidor') : t('Pendente')}
                       </p>
                     </div>
                   </div>
                   <p className="mb-4 break-all text-xs text-slate-500">
-                    Token: {a.tokenEnv} · WABA: {a.wabaId}
+                    {a.simulationOnly ? t('Esta conta não está conectada a um número real.') : <>Token: {a.tokenEnv} · WABA: {a.wabaId}</>}
                   </p>
                   <Button
                     secondary
-                    disabled={busy || data.simulation}
+                    disabled={busy || data.simulation || a.simulationOnly}
                     onClick={() => void act({ action: 'sync', id: a.id }, 'Modelos sincronizados.')}
                   >
                     <RefreshCw size={14} />
@@ -647,7 +648,7 @@ export default function Workspace() {
               {!data.accounts.length && (
                 <Card className="md:col-span-2">
                   <Empty icon={Smartphone}>
-                    {t('Nenhum número cadastrado. Na simulação, use IDs numéricos de exemplo.')}
+                    {t('Adicione uma conta para começar. Na simulação, crie uma conta de teste sem IDs da Meta.')}
                   </Empty>
                 </Card>
               )}
@@ -731,7 +732,7 @@ export default function Workspace() {
                     : modal === 'import'
                       ? t('Importar contatos')
                       : modal === 'account'
-                        ? t('Adicionar conta oficial')
+                        ? t(data.simulation?'Criar conta de teste':'Adicionar conta oficial')
                         : tab === 'Robô de envio'
                           ? t('Nova sequência')
                           : t('Nova campanha')}
@@ -898,71 +899,7 @@ export default function Workspace() {
                 </Button>
               </form>
             )}
-            {modal === 'account' && (
-              <form
-                className="space-y-4"
-                onSubmit={(e) =>
-                  void act({ action: 'account', ...values(e) }, 'Conta cadastrada.', true)
-                }
-              >
-                <p className="text-sm leading-6 text-slate-500">
-                  {data.simulation
-                    ? t(
-                        'Use IDs numéricos de teste. O modelo hello_world será disponibilizado para simulação.',
-                      )
-                    : t('Informe os IDs do seu app Meta. Depois sincronize os modelos aprovados.')}
-                </p>
-                <Label>
-                  {t('Nome da conta')}
-                  <input
-                    name="name"
-                    required
-                    className={field}
-                    placeholder={t('Vendas principal')}
-                  />
-                </Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <Label>
-                    Phone Number ID
-                    <input name="phoneId" required pattern="[0-9]+" className={field} />
-                  </Label>
-                  <Label>
-                    WABA ID
-                    <input name="wabaId" required pattern="[0-9]+" className={field} />
-                  </Label>
-                </div>
-                <Label>
-                  {t('Nome da variável do token')}
-                  <input
-                    name="tokenEnv"
-                    required
-                    pattern="WA_TOKEN_[A-Z0-9_]+"
-                    defaultValue="WA_TOKEN_PRIMARY"
-                    className={field}
-                  />
-                </Label>
-                <Label>
-                  {t('Teto local de envios por 24h')}
-                  <input
-                    name="dailyLimit"
-                    type="number"
-                    required
-                    min={1}
-                    max={100000}
-                    defaultValue={250}
-                    className={field}
-                  />
-                </Label>
-                <p className="text-xs leading-5 text-slate-400">
-                  {t(
-                    'O teto local não concede capacidade de envio na Meta. Guarde o token somente no servidor, na variável indicada acima.',
-                  )}
-                </p>
-                <Button disabled={busy} type="submit">
-                  {t('Cadastrar conta')}
-                </Button>
-              </form>
-            )}
+            {modal === 'account' && <AccountForm simulation={data.simulation} busy={busy} onSave={payload=>void act(payload,'Conta cadastrada.',true)}/>}
             {modal === 'campaign' && (
               <form
                 className="space-y-4"

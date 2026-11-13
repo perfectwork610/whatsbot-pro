@@ -36,7 +36,7 @@ The login page follows the supplied emerald/white design, with responsive layout
 
 ## Test the workflow
 
-1. **Contas WhatsApp**: add a test account with numeric Phone Number ID and WABA ID (e.g. 12345 and 67890), token variable `WA_TOKEN_PRIMARY`, and a local daily ceiling. Simulation supplies `hello_world` / `en_US` without needing a real token.
+1. **Contas WhatsApp**: click **Add account**, enter a name, optionally add a phone number as a label, and click **Create test account**. Simulation generates test identifiers and supplies `hello_world` / `en_US` automatically; no Meta IDs or token are needed. This does not connect a real number. Test-only accounts cannot be used for live sending.
 2. **Contatos**: add a contact or download the CSV example. CSV supports comma/semicolon delimiters, quoted fields, and BOM. Include international phone numbers with country codes. Duplicate numbers are ignored and invalid numbers reported. Maximum 2 MB / 10,000 rows per import; XLSX is not supported.
 3. Record recipient consent and its source/date. A missing source leaves the contact ineligible. Reimporting a number never restores an unsubscribe.
 4. **Campanhas** creates a bulk campaign; **Robô de envio** creates a one-by-one sequence. Choose an explicit sender account, approved template, recipients, and interval. Text body parameters go one per line; `{{nome}}` personalizes the name. Media, header, and button template parameters are not included in this version.
@@ -55,6 +55,8 @@ Account verification, approved templates, billing, sending eligibility, and actu
 3. Configure META_APP_SECRET and a long random META_VERIFY_TOKEN. Expose the app over HTTPS. Set the Meta callback to `https://your-domain/api/webhook` and subscribe to message events. GET verifies the challenge token; POST requires the signed original body.
 4. Set APP_URL to `https://your-domain`, WHATSAPP_MODE to `live`, and restart the server and worker.
 5. Add real account IDs and **Sincronizar modelos**. This retrieves the first 100 templates; pagination beyond 100 and template creation are not included. Campaigns require APPROVED templates.
+
+   **Phone Number ID is not your actual phone number.** Use the numeric identifier from WhatsApp → API Setup in the Meta app, along with the WhatsApp Business Account ID (WABA ID). Entering a number such as `+5511999999999` into Phone Number ID is invalid; removing the `+` does not turn a telephone number into a Meta API identifier.
 6. Test one authorized recipient and verify replies/delivery events before broader use. Configure a conservative local ceiling within the actual Meta allowance. This version does not automatically retrieve Meta account quality or messaging-limit eligibility.
 
 Official references: [Meta Cloud API examples](https://github.com/fbsamples/whatsapp-api-examples), [Meta webhook signature example](https://github.com/fbsamples/whatsapp-api-examples/tree/main/signature-validation-with-webhooks-payloads), [Cloud API documentation](https://developers.facebook.com/docs/whatsapp/cloud-api/).
