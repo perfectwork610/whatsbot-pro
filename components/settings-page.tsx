@@ -7,17 +7,13 @@ import {
   Users,
   ClipboardList,
   Bell,
-  CreditCard,
   Clock,
   Building2,
   Globe,
   Check,
   ArrowRight,
   Send,
-  FileText,
   X,
-  ExternalLink,
-  ShieldCheck,
 } from 'lucide-react';
 import type { State } from '@/lib/types';
 import { useLanguage } from './language';
@@ -42,7 +38,7 @@ export default function SettingsPage({
     keepCampaignLogs: true,
     notifyActivity: true,
   };
-  const [tab, setTab] = useState('general'),
+  const [tab, setTab] = useState<'general' | 'whatsapp' | 'notifications'>('general'),
     [name, setName] = useState(prefs.name),
     [zone, setZone] = useState(prefs.timeZone),
     [language, setLanguage] = useState(prefs.language),
@@ -53,11 +49,8 @@ export default function SettingsPage({
   const tabs = [
     { value: 'general', label: 'Geral', icon: Settings },
     { value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
-    { value: 'team', label: 'Equipe', icon: Users },
-    { value: 'templates', label: 'Modelos', icon: ClipboardList },
     { value: 'notifications', label: 'Notificações', icon: Bell },
-    { value: 'billing', label: 'Faturamento', icon: CreditCard },
-  ];
+  ] as const;
   const zones = Array.from(
     new Set([
       'UTC',
@@ -306,39 +299,6 @@ export default function SettingsPage({
                 <p>{t('O worker precisa estar em execução para processar campanhas.')}</p>
               </div>
             </>
-          ) : tab === 'templates' ? (
-            <>
-              {sectionHeading(
-                'Modelos de mensagem',
-                'Consulte os modelos aprovados das suas contas.',
-                ClipboardList,
-              )}
-              <div className="settings-templates">
-                {data.accounts.map((a) => (
-                  <div key={a.id}>
-                    <h3>{a.name}</h3>
-                    {a.templates.length ? (
-                      a.templates.map((template) => (
-                        <p key={template.name + template.language}>
-                          <FileText size={16} />
-                          <span>
-                            {template.name}
-                            <small>{template.language}</small>
-                          </span>
-                          <b>{t(template.status)}</b>
-                        </p>
-                      ))
-                    ) : (
-                      <p>{t('Nenhum modelo sincronizado.')}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <button className="settings-save" onClick={() => onNavigate('Contas WhatsApp')}>
-                {t('Gerenciar contas')}
-                <ArrowRight size={17} />
-              </button>
-            </>
           ) : tab === 'notifications' ? (
             <>
               {sectionHeading(
@@ -364,7 +324,7 @@ export default function SettingsPage({
                     <span>
                       <strong>{t('Indicador de atividade')}</strong>
                       <small>
-                        {t('Mostre o indicador no sino quando houver atividade recente.')}
+                        {t('Mostre o indicador no sino quando houver notificações não lidas.')}
                       </small>
                     </span>
                   </label>
@@ -375,33 +335,7 @@ export default function SettingsPage({
                 </button>
               </form>
             </>
-          ) : tab === 'team' ? (
-            <>
-              {sectionHeading('Equipe', 'Acesso ao espaço de trabalho.', Users)}
-              <div className="settings-info-block">
-                <ShieldCheck />
-                <div>
-                  <strong>{t('Administrador')}</strong>
-                  <p>
-                    {t(
-                      'Este espaço de trabalho usa uma conta de administrador. O gerenciamento de membros não está configurado.',
-                    )}
-                  </p>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              {sectionHeading('Faturamento', 'Informações da sua instalação.', CreditCard)}
-              <div className="settings-info-block">
-                <Building2 />
-                <div>
-                  <strong>{t('Instalação própria')}</strong>
-                  <p>{t('Nenhuma assinatura ou cobrança está configurada neste aplicativo.')}</p>
-                </div>
-              </div>
-            </>
-          )}
+          ) : null}
         </section>
         <section className="settings-history-card">
           <header className="settings-history-heading">

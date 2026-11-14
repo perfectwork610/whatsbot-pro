@@ -1,5 +1,6 @@
 export type Locale = 'en' | 'pt-BR';
 export const english: Record<string, string> = {
+  'Mostre o indicador no sino quando houver notificações não lidas.': 'Show the bell indicator when there are unread notifications.',
   'Mostrar mais': 'Show more',
   'não lidas': 'unread',
   'Não lida': 'Unread',
