@@ -333,7 +333,7 @@ export default function Workspace() {
           tab === 'Configurações' ||
           tab === 'Relatórios' ||
           tab === 'Robô de envio' ? (
-            <OverviewToolbar data={data} />
+            <OverviewToolbar data={data} onMarkRead={(ids) => act({ action: 'notifications-read', ids }, '')} />
           ) : (
             <div className="flex items-center gap-2 sm:gap-4">
               <LanguageSelector />

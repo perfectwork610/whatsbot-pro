@@ -22,22 +22,31 @@ export type WorkspaceTab =
   | 'Configurações';
 const groups = [
   {
-    label: 'PRINCIPAL',
+    label: 'ESPAÇO DE TRABALHO',
+    kind: 'shared',
+    description: '',
     items: [
       { name: 'Visão geral', icon: LayoutDashboard },
       { name: 'Contatos', icon: Users },
-      { name: 'Campanhas', icon: Send },
-      { name: 'Robô de envio', icon: Bot },
     ],
   },
   {
-    label: 'CANAIS E ANÁLISES',
+    label: '01 · WHATSAPP BUSINESS API',
+    kind: 'api',
+    description: 'Campanhas com modelos aprovados pela Meta',
     items: [
+      { name: 'Campanhas', icon: Send },
       { name: 'Contas WhatsApp', icon: Smartphone },
       { name: 'Relatórios', icon: BarChart3 },
     ],
   },
-  { label: 'ESPAÇO DE TRABALHO', items: [{ name: 'Configurações', icon: Settings }] },
+  {
+    label: '02 · WHATSAPP WEB · QR',
+    kind: 'qr',
+    description: 'Contato individual com números conectados por QR',
+    items: [{ name: 'Robô de envio', icon: Bot }],
+  },
+  { label: 'PREFERÊNCIAS', kind: 'shared', description: '', items: [{ name: 'Configurações', icon: Settings }] },
 ];
 export default function WorkspaceSidebar({
   tab,
@@ -64,8 +73,9 @@ export default function WorkspaceSidebar({
       </a>
       <nav className="workspace-nav" aria-label={t('Navegação principal')}>
         {groups.map((group) => (
-          <div key={group.label} className="workspace-nav-group">
+          <div key={group.label} className={`workspace-nav-group workspace-nav-group--${group.kind}`}>
             <p>{t(group.label)}</p>
+            {group.description && <div className="workspace-nav-description">{t(group.description)}</div>}
             {group.items.map((item) => (
               <button
                 key={item.name}
@@ -85,10 +95,10 @@ export default function WorkspaceSidebar({
           {workspaceName || t('Meu espaço de trabalho')}
         </h3>
         <p>
-          {accountCount.toLocaleString(locale)} {t('Contas WhatsApp')}
+          {accountCount.toLocaleString(locale)} {t('Contas da API oficial')}
         </p>
         <span className="overview-workspace-mode">
-          {t(simulation ? 'Ambiente de simulação' : 'Integração oficial Meta.')}
+          {t(simulation ? 'Ambiente de simulação' : 'Ambiente de produção')}
         </span>
         <div className="overview-workspace-accent" aria-hidden="true" />
         <button onClick={() => onNavigate('Contas WhatsApp')}>

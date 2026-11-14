@@ -4,6 +4,7 @@ import { graph, send, simulation } from '@/lib/whatsapp';
 import { randomInt } from 'node:crypto';
 import { removeContacts } from '@/lib/contact-removal';
 import { removeAccount } from '@/lib/account-removal';
+import { markNotificationsRead } from '@/lib/notifications';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 const text = (v: unknown, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -36,7 +37,9 @@ export async function POST(req: NextRequest) {
       throw new Error('Arquivo muito grande. Máximo 2 MB.');
     const b = await req.json();
     let result: unknown;
-    if (b.action === 'contacts') {
+    if (b.action === 'notifications-read') {
+      update(s => markNotificationsRead(s.audit, b.ids));
+    } else if (b.action === 'contacts') {
       if (!Array.isArray(b.rows) || b.rows.length > 10000)
         throw new Error('Importe até 10.000 contatos por vez.');
       result = update((s) => {

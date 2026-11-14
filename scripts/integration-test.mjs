@@ -804,6 +804,14 @@ check((await state()).contacts.some(c => c.phone === '12025550999' && c.name ===
 await action({ action: 'contact-create', name: 'Invalid permission', phone: '12025550998', consent: true }, 400);
 await action({ action: 'contacts-restore', ids: [c1.id, webContact.id] });
 check((await state()).contacts.filter(c => [c1.id, webContact.id].includes(c.id)).every(c => !c.consent), 'contact undo does not restore sending permission');
+const { notificationKey } = await import('../lib/notifications.ts');
+const beforeRead = await state();
+await action({action: 'notifications-read', ids: beforeRead.audit.map(notificationKey)});
+const afterRead = await state();
+check(afterRead.audit.every(e => !!e.readAt) && afterRead.audit.length === beforeRead.audit.length, 'mark all notifications read persists without creating another notification');
+await action({action: 'account-update', id: removableAccount.id, name: 'New notification test'});
+check((await state()).audit.some(e => !e.readAt), 'activity created after mark-all remains unread');
+await action({action: 'notifications-read', ids: 'invalid'}, 400);
 const csrfLogout = await fetch(base + '/api/auth/logout', {
   method: 'POST',
   headers: { Cookie: auth, Origin: 'https://evil.example' },

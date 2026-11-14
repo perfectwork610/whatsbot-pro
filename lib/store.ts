@@ -45,7 +45,7 @@ export function update<T>(fn: (state: State) => T): T {
 }
 export function audit(state: State, text: string) {
   if (state.workspace?.keepCampaignLogs === false && /^Campanha\b/.test(text)) return;
-  state.audit.unshift({ at: new Date().toISOString(), text });
+  state.audit.unshift({ id: crypto.randomUUID(), at: new Date().toISOString(), text });
   state.audit = state.audit.slice(0, 1000);
 }
 

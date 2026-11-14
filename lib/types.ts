@@ -83,5 +83,5 @@ export type State = {
   events: string[];
   nextSend: Record<string, number>;
   settings: { botEnabled: boolean; greeting: string };
-  audit: { at: string; text: string }[];
+  audit: { id?: string; at: string; text: string; readAt?: string }[];
 };
