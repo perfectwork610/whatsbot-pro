@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sameOrigin } from '@/lib/auth';
 import { audit, read, update, migrateLegacyOutreach } from '@/lib/store';
 import { graph, send, simulation } from '@/lib/whatsapp';
 import { randomInt } from 'node:crypto';
@@ -28,9 +29,7 @@ export async function GET() {
   );
 }
 export async function POST(req: NextRequest) {
-  const allowedOrigin =
-    process.env.APP_URL || `${req.nextUrl.protocol}//${req.headers.get('host')}`;
-  if (req.headers.get('origin') !== allowedOrigin)
+  if (!sameOrigin(req))
     return NextResponse.json({ error: 'Origem inválida' }, { status: 403 });
   try {
     if (Number(req.headers.get('content-length')) > 2_000_000)

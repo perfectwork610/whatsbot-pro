@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticate, createSession, SESSION_COOKIE, SESSION_SECONDS } from '@/lib/auth';
+import {
+  authenticate,
+  createSession,
+  sameOrigin,
+  SESSION_COOKIE,
+  SESSION_SECONDS,
+} from '@/lib/auth';
 export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
-  const origin =
-    process.env.APP_URL || `${request.nextUrl.protocol}//${request.headers.get('host')}`;
-  if (request.headers.get('origin') !== origin)
-    return NextResponse.json({ error: 'Origem inválida' }, { status: 403 });
+  const origin = sameOrigin(request);
+  if (!origin) return NextResponse.json({ error: 'Origem inválida' }, { status: 403 });
   try {
     const raw = await request.text();
     if (raw.length > 4096)

@@ -2,9 +2,33 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import type { NextRequest } from 'next/server';
 
 export const SESSION_COOKIE = 'whatsbot_session';
 export const SESSION_SECONDS = 12 * 60 * 60;
+
+/** Public browser origin used for CSRF checks. Prefer APP_URL; otherwise derive from proxy headers. */
+export function appOrigin(request: NextRequest): string {
+  const configured = process.env.APP_URL?.trim().replace(/\/+$/, '');
+  if (configured) return configured;
+  const proto =
+    request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() ||
+    request.nextUrl.protocol.replace(/:$/, '') ||
+    'https';
+  const host =
+    request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
+    request.headers.get('host') ||
+    request.nextUrl.host;
+  return `${proto}://${host}`;
+}
+
+/** Returns the allowed origin when the request Origin matches; otherwise null. */
+export function sameOrigin(request: NextRequest): string | null {
+  const allowed = appOrigin(request);
+  const origin = request.headers.get('origin')?.trim().replace(/\/+$/, '');
+  if (!origin || origin !== allowed) return null;
+  return allowed;
+}
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 let database: DatabaseSync | undefined;
 function db() {

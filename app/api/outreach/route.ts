@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sameOrigin } from '@/lib/auth';
 import { read, update, audit, migrateLegacyOutreach } from '@/lib/store';
 import { simulation } from '@/lib/whatsapp';
 import { outreachWorkerLive, deleteOutreachRun } from '@/lib/outreach-engine';
@@ -32,9 +33,7 @@ export async function GET() {
   );
 }
 export async function POST(request: NextRequest) {
-  const origin =
-    process.env.APP_URL || `${request.nextUrl.protocol}//${request.headers.get('host')}`;
-  if (request.headers.get('origin') !== origin)
+  if (!sameOrigin(request))
     return NextResponse.json({ error: 'Origem inválida' }, { status: 403 });
   try {
     if (Number(request.headers.get('content-length')) > 1500000)
