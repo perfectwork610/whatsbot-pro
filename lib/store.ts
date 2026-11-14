@@ -2,9 +2,10 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { separateLegacyOutreach } from './outreach-migration.ts';
 import path from 'node:path';
+import { dataDir } from './paths';
 import type { State } from './types';
 
-const dir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+const dir = dataDir();
 mkdirSync(dir, { recursive: true });
 const db = new DatabaseSync(path.join(dir, 'whatsbot.sqlite'));
 db.exec(

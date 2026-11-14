@@ -840,13 +840,10 @@ check(
 const second = await login({ username: 'admin', password });
 auth = second.headers.get('set-cookie').split(';')[0];
 check(second.status === 200, 'user can sign in again after logout');
-const { DatabaseSync } = await import('node:sqlite');
-const { default: path } = await import('node:path');
-const database = new DatabaseSync(path.join(process.env.DATA_DIR, 'auth.sqlite'));
-database.prepare('UPDATE sessions SET expires_at=0').run();
-database.close();
+const { expiredSessionForTests, SESSION_COOKIE } = await import('../lib/auth.ts');
+const expiredAuth = `${SESSION_COOKIE}=${expiredSessionForTests()}`;
 check(
-  (await fetch(base + '/api/manage', { headers: { Cookie: auth } })).status === 401,
+  (await fetch(base + '/api/manage', { headers: { Cookie: expiredAuth } })).status === 401,
   'expired server session rejected',
 );
 for (let i = 0; i < 10; i++) await login({ username: 'admin', password: 'incorrect' });

@@ -1,9 +1,10 @@
 import { spawn } from 'node:child_process';
 import { openSync, closeSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { dataDir } from './paths';
 export function startOutreachWorker() {
   if (process.env.OUTREACH_DISABLE_AUTOSTART === 'true') return;
-  const dir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+  const dir = dataDir();
   mkdirSync(dir, { recursive: true });
   const log = openSync(path.join(dir, 'outreach-worker.log'), 'a');
   try {
