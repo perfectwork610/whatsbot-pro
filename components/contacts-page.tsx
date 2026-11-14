@@ -58,6 +58,7 @@ export default function ContactsPage({
     [view, setView] = useState('list'),
     [selected, setSelected] = useState<Set<string>>(new Set()),
     [menu, setMenu] = useState<string | null>(null),
+    [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null),
     [editing, setEditing] = useState<Contact | null>(null);
   const editor = useRef<HTMLDialogElement>(null);
   const removalDialog = useRef<HTMLDialogElement>(null);
@@ -79,18 +80,26 @@ export default function ContactsPage({
     if (editing) editor.current?.showModal();
   }, [editing]);
   useEffect(() => {
-    if (!menu) return;
+    if (!menu) {
+      setMenuPos(null);
+      return;
+    }
     const close = (e: PointerEvent) => {
       if (!(e.target as HTMLElement).closest('.contacts-row-menu')) setMenu(null);
     };
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setMenu(null);
     };
+    const repositionClose = () => setMenu(null);
     document.addEventListener('pointerdown', close);
     document.addEventListener('keydown', key);
+    window.addEventListener('resize', repositionClose);
+    window.addEventListener('scroll', repositionClose, true);
     return () => {
       document.removeEventListener('pointerdown', close);
       document.removeEventListener('keydown', key);
+      window.removeEventListener('resize', repositionClose);
+      window.removeEventListener('scroll', repositionClose, true);
     };
   }, [menu]);
   const lists = useMemo(
@@ -196,10 +205,20 @@ export default function ContactsPage({
     );
   }
   function actions(c: Contact) {
+    const permissionLabel = t(status(c) === 'yes' ? 'Descadastrar' : 'Registrar permissão');
     return (
       <div className="contacts-actions">
         <button aria-label={`${t('Editar contato')}: ${c.name}`} onClick={() => setEditing(c)}>
           <Pencil size={17} />
+        </button>
+        <button
+          className={status(c) === 'yes' ? 'contacts-permission-action is-granted' : 'contacts-permission-action'}
+          disabled={busy}
+          title={permissionLabel}
+          aria-label={`${permissionLabel}: ${c.name}`}
+          onClick={() => onPermission(c)}
+        >
+          {status(c) === 'yes' ? <X size={16} /> : <ShieldCheck size={17} />}
         </button>
         <button className="contacts-remove" disabled={busy} title={t('Remover contato')}
           aria-label={`${t('Remover contato')}: ${c.name}`} onClick={() => showRemoval([c])}>
@@ -209,12 +228,34 @@ export default function ContactsPage({
           <button
             aria-label={`${t('Mais ações')}: ${c.name}`}
             aria-expanded={menu === c.id}
-            onClick={() => setMenu(menu === c.id ? null : c.id)}
+            onClick={(event) => {
+              if (menu === c.id) {
+                setMenu(null);
+                return;
+              }
+              const rect = event.currentTarget.getBoundingClientRect();
+              const menuWidth = 190;
+              const menuHeight = 96;
+              const left = Math.min(
+                Math.max(8, rect.right - menuWidth),
+                window.innerWidth - menuWidth - 8,
+              );
+              const openUp = rect.bottom + menuHeight > window.innerHeight - 8;
+              const top = openUp
+                ? Math.max(8, rect.top - menuHeight - 4)
+                : rect.bottom + 4;
+              setMenuPos({ top, left });
+              setMenu(c.id);
+            }}
           >
             <MoreHorizontal size={21} />
           </button>
-          {menu === c.id && (
-            <div className="contacts-menu" role="menu">
+          {menu === c.id && menuPos && (
+            <div
+              className="contacts-menu"
+              role="menu"
+              style={{ top: menuPos.top, left: menuPos.left }}
+            >
               <button
                 role="menuitem"
                 onClick={() => {
@@ -222,7 +263,7 @@ export default function ContactsPage({
                   setMenu(null);
                 }}
               >
-                {t(status(c) === 'yes' ? 'Descadastrar' : 'Registrar permissão')}
+                {permissionLabel}
               </button>
               <button
                 role="menuitem"
