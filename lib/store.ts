@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { separateLegacyOutreach } from './outreach-migration.ts';
 import path from 'node:path';
-import { dataDir } from './paths';
+import { dataDir } from './paths.ts';
 import type { State } from './types';
 
 const dir = dataDir();

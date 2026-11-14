@@ -8,7 +8,6 @@ import {
   ClipboardList,
   Bell,
   Clock,
-  Building2,
   Globe,
   Check,
   ArrowRight,
@@ -32,14 +31,12 @@ export default function SettingsPage({
 }) {
   const { t, locale, setLocale } = useLanguage();
   const prefs = data.workspace || {
-    name: 'WhatsBot Pro',
     timeZone: 'UTC',
     language: locale,
     keepCampaignLogs: true,
     notifyActivity: true,
   };
   const [tab, setTab] = useState<'general' | 'whatsapp' | 'notifications'>('general'),
-    [name, setName] = useState(prefs.name),
     [zone, setZone] = useState(prefs.timeZone),
     [language, setLanguage] = useState(prefs.language),
     [logs, setLogs] = useState(prefs.keepCampaignLogs),
@@ -69,7 +66,6 @@ export default function SettingsPage({
     const ok = await onAction(
       {
         action: 'workspace-settings',
-        name,
         timeZone: zone,
         language,
         keepCampaignLogs: logs,
@@ -182,19 +178,6 @@ export default function SettingsPage({
                   void save();
                 }}
               >
-                <label>
-                  {t('Nome do espaço de trabalho')}
-                  <span className="settings-field">
-                    <Building2 size={20} />
-                    <input
-                      name="workspaceName"
-                      required
-                      maxLength={100}
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                    />
-                  </span>
-                </label>
                 <label>
                   {t('Fuso horário')}
                   <span className="settings-field">

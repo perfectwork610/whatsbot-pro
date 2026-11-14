@@ -322,7 +322,7 @@ export async function POST(req: NextRequest) {
         audit(s, `Campanha ${c.name}: ${c.status}.`);
       });
     } else if (b.action === 'workspace-settings') {
-      const name = required(b.name, 'Nome do espaço de trabalho', 100);
+      const name = b.name === undefined ? undefined : required(b.name, 'Nome do espaço de trabalho', 100);
       const timeZone = required(b.timeZone, 'Fuso horário', 100);
       try {
         new Intl.DateTimeFormat('en', { timeZone }).format();
@@ -337,7 +337,7 @@ export async function POST(req: NextRequest) {
         throw new Error('Preferências inválidas.');
       update((s) => {
         s.workspace = {
-          name,
+          name: name ?? s.workspace?.name ?? 'WhatsBot Pro',
           timeZone,
           language: b.language,
           keepCampaignLogs: b.keepCampaignLogs,

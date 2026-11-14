@@ -585,6 +585,14 @@ await action({
   notifyActivity: false,
 });
 const workspacePrefs = (await state()).workspace;
+await action({
+  action: 'workspace-settings',
+  timeZone: workspacePrefs.timeZone,
+  language: workspacePrefs.language,
+  keepCampaignLogs: workspacePrefs.keepCampaignLogs,
+  notifyActivity: workspacePrefs.notifyActivity,
+});
+check((await state()).workspace.name === workspacePrefs.name, 'general settings save without a workspace name preserves existing personalization');
 check(
   workspacePrefs.name === 'Integration workspace' &&
     workspacePrefs.timeZone === 'America/Sao_Paulo' &&
