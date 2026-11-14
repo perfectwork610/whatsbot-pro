@@ -297,7 +297,7 @@ export default function OutreachPage({
             <article key={session.id}>
               <header>
                 <span className="outreach-wa">
-                  <WhatsAppMark />
+                  <WhatsAppMark variant="whatsapp" />
                 </span>
                 <div>
                   <h2>{session.name}</h2>

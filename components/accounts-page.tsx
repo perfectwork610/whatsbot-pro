@@ -248,7 +248,7 @@ export default function AccountsPage({
             <article className="accounts-account" key={a.id}>
               <header>
                 <span className="accounts-wa-icon">
-                  <WhatsAppMark />
+                  <WhatsAppMark variant="whatsapp" />
                 </span>
                 <div className="accounts-identity">
                   <div>
@@ -367,7 +367,7 @@ export default function AccountsPage({
       </div>
       {!rows.length && (
         <div className="accounts-empty">
-          <WhatsAppMark />
+          <WhatsAppMark variant="whatsapp" />
           <h2>{t('Nenhuma conta encontrada')}</h2>
           <p>{t('Adicione uma conta ou ajuste os filtros para começar.')}</p>
           <button className="accounts-primary" onClick={onAdd}>

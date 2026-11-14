@@ -285,7 +285,7 @@ export default function SettingsPage({
                 MessageCircle,
               )}
               <div className="settings-info-block">
-                <WhatsAppMark />
+                <WhatsAppMark variant="whatsapp" />
                 <div>
                   <strong>
                     {data.accounts.length} {t('Contas WhatsApp')}

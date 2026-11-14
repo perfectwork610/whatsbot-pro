@@ -62,7 +62,7 @@ export default function LoginForm() {
         <div className="login-hero-art" aria-hidden="true" />
         <div className="login-hero-dots" aria-hidden="true" />
         <a href="/login" className="login-brand" aria-label="WhatsBot Pro">
-          <WhatsAppMark />
+          <WhatsAppMark variant="whatsapp" />
           <span>
             WhatsBot <strong>Pro</strong>
           </span>
@@ -87,7 +87,7 @@ export default function LoginForm() {
           </p>
         </div>
         <div className="login-phone-mark" aria-hidden="true">
-          <WhatsAppMark />
+          <WhatsAppMark variant="whatsapp" />
         </div>
         <div className="login-art-labels" aria-hidden="true">
           <div className="login-float-card login-float-bulk">
@@ -138,14 +138,14 @@ export default function LoginForm() {
       <section className="login-form-panel">
         <div className="login-topbar">
           <a href="/login" className="login-mobile-brand">
-            <WhatsAppMark />
+            <WhatsAppMark variant="whatsapp" />
             WhatsBot <strong>Pro</strong>
           </a>
           <LanguageSelector variant="login" />
         </div>
         <div className="login-card">
           <div className="login-app-icon">
-            <WhatsAppMark />
+            <WhatsAppMark variant="whatsapp" />
           </div>
           <h2>{t('Bem-vindo de volta')}</h2>
           <p className="login-card-subtitle">{t('Entre na sua conta WhatsBot Pro')}</p>
@@ -233,7 +233,7 @@ export default function LoginForm() {
           <X size={20} />
         </button>
         <div className="login-app-icon">
-          <WhatsAppMark />
+          <WhatsAppMark variant="whatsapp" />
         </div>
         <h2 id="login-help-title">
           {t(help === 'password' ? 'Recuperar acesso' : 'Solicitar uma conta')}

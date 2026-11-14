@@ -412,7 +412,7 @@ export default function ContactsPage({
                     checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                   {name(c, i)}
                   <p>
-                    <WhatsAppMark /> +{c.phone}
+                    <WhatsAppMark variant="whatsapp" /> +{c.phone}
                   </p>
                   <div className="contacts-tags">{tags(c)}</div>
                   {permissionBadge(c)}
@@ -463,7 +463,7 @@ export default function ContactsPage({
                       <td>{name(c, i)}</td>
                       <td>
                         <span className="contacts-phone">
-                          <WhatsAppMark />+{c.phone}
+                          <WhatsAppMark variant="whatsapp" />+{c.phone}
                         </span>
                       </td>
                       <td>

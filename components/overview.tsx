@@ -40,7 +40,7 @@ function HeaderArtwork() {
         />
       </svg>
       <span className="overview-header-tile">
-        <WhatsAppMark />
+        <WhatsAppMark variant="whatsapp" />
       </span>
       <span className="overview-mini-tile overview-mini-tile--left">
         <MessageSquareMore size={22} />
