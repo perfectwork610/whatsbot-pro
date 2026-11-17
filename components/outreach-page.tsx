@@ -62,10 +62,12 @@ export default function OutreachPage({
     [detail, setDetail] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<OutreachRun | null>(null);
   const [deleted, setDeleted] = useState<OutreachRun | null>(null);
+  const [removingSession, setRemovingSession] = useState<OutreachSession | null>(null);
   const connectionDialog = useRef<HTMLDialogElement>(null),
     runDialog = useRef<HTMLDialogElement>(null),
     detailDialog = useRef<HTMLDialogElement>(null);
   const deleteDialog = useRef<HTMLDialogElement>(null);
+  const removeSessionDialog = useRef<HTMLDialogElement>(null);
   const refresh = useCallback(async () => {
     const response = await fetch('/api/outreach', { cache: 'no-store' });
     if (response.status === 401) {
@@ -362,19 +364,33 @@ export default function OutreachPage({
                     }}
                   />
                 </label>
-                <button
-                  disabled={busy}
-                  className="outreach-secondary"
-                  onClick={() =>
-                    void action({
-                      action: session.desiredConnected ? 'session-disconnect' : 'session-connect',
-                      id: session.id,
-                    })
-                  }
-                >
-                  {session.desiredConnected ? <Link2Off size={16} /> : <QrCode size={16} />}{' '}
-                  {t(session.desiredConnected ? 'Desconectar' : 'Conectar')}
-                </button>
+                <div className="outreach-connection-actions">
+                  <button
+                    disabled={busy}
+                    className="outreach-secondary"
+                    onClick={() =>
+                      void action({
+                        action: session.desiredConnected ? 'session-disconnect' : 'session-connect',
+                        id: session.id,
+                      })
+                    }
+                  >
+                    {session.desiredConnected ? <Link2Off size={16} /> : <QrCode size={16} />}{' '}
+                    {t(session.desiredConnected ? 'Desconectar' : 'Conectar')}
+                  </button>
+                  <button
+                    disabled={busy}
+                    className="outreach-secondary outreach-danger"
+                    title={t('Remover conexão')}
+                    aria-label={`${t('Remover conexão')}: ${session.name}`}
+                    onClick={() => {
+                      setRemovingSession(session);
+                      removeSessionDialog.current?.showModal();
+                    }}
+                  >
+                    <Trash2 size={16} /> {t('Remover')}
+                  </button>
+                </div>
               </footer>
             </article>
           ))}
@@ -518,6 +534,54 @@ export default function OutreachPage({
               deleteDialog.current?.close();
             }
           }}><Trash2 size={16} />{t('Excluir fila')}</button>
+        </footer>
+      </DismissibleDialog>
+      <DismissibleDialog
+        ref={removeSessionDialog}
+        className="outreach-dialog"
+        aria-labelledby="outreach-remove-session-title"
+      >
+        <header>
+          <h2 id="outreach-remove-session-title">{t('Remover conexão')}?</h2>
+          <button
+            disabled={busy}
+            aria-label={t('Fechar formulário')}
+            onClick={() => removeSessionDialog.current?.close()}
+          >
+            <X size={20} />
+          </button>
+        </header>
+        {banner()}
+        <p className="outreach-delete-name">{removingSession?.name}</p>
+        <p>
+          {t(
+            'A conexão será desconectada e removida desta lista. Filas que usam este número serão pausadas. Mensagens já enviadas serão preservadas.',
+          )}
+        </p>
+        <footer className="outreach-delete-actions">
+          <button
+            className="outreach-secondary"
+            disabled={busy}
+            onClick={() => removeSessionDialog.current?.close()}
+          >
+            {t('Cancelar')}
+          </button>
+          <button
+            className="outreach-primary outreach-delete-confirm"
+            disabled={busy}
+            onClick={async () => {
+              if (
+                removingSession &&
+                (await action({ action: 'session-remove', id: removingSession.id }))
+              ) {
+                setRemovingSession(null);
+                removeSessionDialog.current?.close();
+              }
+            }}
+          >
+            <Trash2 size={16} />
+            {t('Remover conexão')}
+          </button>
         </footer>
       </DismissibleDialog>
       <DismissibleDialog

@@ -135,6 +135,9 @@ export const english: Record<string, string> = {
   'Conecte seu primeiro número': 'Link your first number',
   Conectar: 'Connect',
   Desconectar: 'Disconnect',
+  'Remover conexão': 'Remove connection',
+  'A conexão será desconectada e removida desta lista. Filas que usam este número serão pausadas. Mensagens já enviadas serão preservadas.':
+    'The connection will be disconnected and removed from this list. Queues using this number will be paused. Messages already sent will be kept.',
   'Limite local / 24h': 'Local limit / 24h',
   'Clique em conectar para gerar um QR.': 'Click Connect to generate a QR code.',
   'Preparando a conexão. O QR aparecerá aqui.':

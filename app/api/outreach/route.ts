@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rmSync } from 'node:fs';
+import path from 'node:path';
 import { sameOrigin } from '@/lib/auth';
+import { dataDir } from '@/lib/paths';
 import { read, update, audit, migrateLegacyOutreach } from '@/lib/store';
 import { simulation } from '@/lib/whatsapp';
 import { outreachWorkerLive, deleteOutreachRun } from '@/lib/outreach-engine';
@@ -110,6 +113,34 @@ export async function POST(request: NextRequest) {
             .forEach((run) => {
               run.status = 'paused';
             });
+      } else if (body.action === 'session-remove') {
+        const index = state.outreachSessions.findIndex((s) => s.id === body.id);
+        if (index < 0) throw new Error('Conexão inexistente.');
+        const session = state.outreachSessions[index];
+        session.generation++;
+        session.desiredConnected = false;
+        session.status = 'disconnected';
+        session.qr = undefined;
+        session.qrExpiresAt = undefined;
+        session.error = undefined;
+        state.outreachRuns
+          .filter((run) => run.senderIds.includes(session.id) && run.status === 'running')
+          .forEach((run) => {
+            run.status = 'paused';
+          });
+        for (const run of state.outreachRuns) {
+          run.senderIds = run.senderIds.filter((id) => id !== session.id);
+        }
+        state.outreachSessions.splice(index, 1);
+        audit(state, 'Robô: conexão QR removida.');
+        try {
+          rmSync(path.join(dataDir(), 'outreach-auth', `session-${session.id}`), {
+            recursive: true,
+            force: true,
+          });
+        } catch {
+          /* Browser may still hold the profile briefly; worker will stop using it. */
+        }
       } else if (body.action === 'run-create') {
         const name = required(body.name),
           message = required(body.message, 4000),
