@@ -277,15 +277,7 @@ export default function Workspace() {
   );
   const selectedAccount = data.accounts.find((a) => a.id === campaignAccount);
   const templates = selectedAccount?.templates.filter((t) => t.status === 'APPROVED') || [];
-  const nav = (
-    <WorkspaceSidebar
-      tab={tab}
-      onNavigate={navigate}
-      simulation={data.simulation}
-      accountCount={data.accounts.length}
-      workspaceName={data.workspace?.name}
-    />
-  );
+  const nav = <WorkspaceSidebar tab={tab} onNavigate={navigate} />;
   return (
     <div
       className={`workspace min-h-screen ${tab === 'Visão geral' ? 'workspace--overview' : tab === 'Contatos' ? 'workspace--contacts' : tab === 'Campanhas' ? 'workspace--campaigns' : tab === 'Contas WhatsApp' ? 'workspace--accounts' : tab === 'Configurações' ? 'workspace--settings' : tab === 'Relatórios' ? 'workspace--reports' : tab === 'Robô de envio' ? 'workspace--outreach' : ''}`}

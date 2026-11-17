@@ -7,8 +7,6 @@ import {
   Settings,
   Smartphone,
   Users,
-  Crown,
-  ArrowRight,
 } from 'lucide-react';
 import { useLanguage } from './language';
 import WhatsAppMark from './whatsapp-mark';
@@ -51,17 +49,11 @@ const groups = [
 export default function WorkspaceSidebar({
   tab,
   onNavigate,
-  simulation,
-  accountCount = 0,
-  workspaceName,
 }: {
   tab: WorkspaceTab;
   onNavigate: (tab: WorkspaceTab) => void;
-  simulation: boolean;
-  accountCount?: number;
-  workspaceName?: string;
 }) {
-  const { t, locale } = useLanguage();
+  const { t } = useLanguage();
   return (
     <>
       <a href="/" className="workspace-brand">
@@ -89,23 +81,6 @@ export default function WorkspaceSidebar({
           </div>
         ))}
       </nav>
-      <div className="overview-workspace-card">
-        <h3>
-          <Crown size={20} />
-          {workspaceName || t('Meu espaço de trabalho')}
-        </h3>
-        <p>
-          {accountCount.toLocaleString(locale)} {t('Contas da API oficial')}
-        </p>
-        <span className="overview-workspace-mode">
-          {t(simulation ? 'Ambiente de simulação' : 'Ambiente de produção')}
-        </span>
-        <div className="overview-workspace-accent" aria-hidden="true" />
-        <button onClick={() => onNavigate('Contas WhatsApp')}>
-          {t('Gerenciar contas')}
-          <ArrowRight size={16} />
-        </button>
-      </div>
     </>
   );
 }
