@@ -60,9 +60,10 @@ export async function POST(req: NextRequest) {
             continue;
           }
           activePhones.add(phone);
-          const source = text(row.source, 500);
           const name = text(row.name) || phone;
-          const consent = row.consent === true && !!source;
+          // Imports grant permission by default; explicit consent:false stays pending.
+          const consent = row.consent !== false;
+          const source = text(row.source, 500) || (consent ? 'Importação' : '');
           const removed = s.contacts.find((contact) => contact.phone === phone && contact.deletedAt);
           if (removed) {
             removed.deletedAt = undefined;

@@ -43,14 +43,16 @@ export function parseCSV(input: string): Record<string, string>[] {
 }
 export type ImportedContact = { name: string; phone: string; source: string; consent: boolean };
 export function parseContactList(input: string): ImportedContact[] {
-  return parseCSV(input).map((row) => ({
-    name: (row.nome || row.name || '').slice(0, 200),
-    phone: (row.telefone || row.phone || row.numero || row['número'] || '').slice(0, 200),
-    source: (row.origem || row.source || '').slice(0, 500),
-    consent: ['true', 'sim', '1', 'yes'].includes(
-      (row.consentimento || row.consent || '').toLowerCase(),
-    ),
-  }));
+  return parseCSV(input).map((row) => {
+    const consentRaw = (row.consentimento || row.consent || '').toLowerCase().trim();
+    return {
+      name: (row.nome || row.name || '').slice(0, 200),
+      phone: (row.telefone || row.phone || row.numero || row['número'] || '').slice(0, 200),
+      source: (row.origem || row.source || '').slice(0, 500),
+      // Default granted; only explicit no/false opts out of import permission.
+      consent: !['false', 'nao', 'não', '0', 'no'].includes(consentRaw),
+    };
+  });
 }
 export function contactImportBatches(rows: ImportedContact[]): ImportedContact[][] {
   const batches: ImportedContact[][] = [];

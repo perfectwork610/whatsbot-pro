@@ -502,8 +502,8 @@ export const english: Record<string, string> = {
     'Import a prospecting XLSX (COMPANY, PHONE…) or a CSV/TXT with one phone number per line.',
   'Use números com código do país. Sem nome, o telefone será usado como identificação. Contatos sem consentimento registrado ficam com permissão pendente.':
     'Include the country code. When no name is provided, the phone number is used as the label. Contacts without recorded consent remain pending permission.',
-  'Na planilha XLSX, o nome usa NOME FANTASIA ou EMPRESA e o telefone recebe o código do Brasil (55) quando necessário. Contatos importados ficam com permissão pendente.':
-    'In the XLSX sheet, the name uses trade name or company name, and Brazilian numbers get country code 55 when needed. Imported contacts stay pending permission.',
+  'Na planilha XLSX, o nome usa NOME FANTASIA ou EMPRESA e o telefone recebe o código do Brasil (55) quando necessário. Contatos importados já entram com permissão; use Descadastrar se não quiser enviar.':
+    'In the XLSX sheet, the name uses trade name or company name, and Brazilian numbers get country code 55 when needed. Imported contacts already have permission; use Unsubscribe if you do not want to send.',
   'Até 2 MB e 100.000 contatos por arquivo. Listas grandes são importadas em lotes; duplicados são ignorados. CSV com colunas em português ou inglês continua aceito.':
     'Up to 2 MB and 100,000 contacts per file. Large lists are imported in batches; duplicates are skipped. CSV files with English or Portuguese columns are still supported.',
   'Até 5 MB e 100.000 contatos por arquivo. Listas grandes são importadas em lotes; duplicados são ignorados. XLSX de prospecção e CSV/TXT continuam aceitos.':

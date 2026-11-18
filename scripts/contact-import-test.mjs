@@ -8,9 +8,9 @@ assert.equal(rows[0].phone, '+1 (202) 555-0101');
 assert.deepEqual(
   rows.map((row) => [row.name, row.consent, row.source]),
   [
-    ['', false, ''],
-    ['', false, ''],
-    ['', false, ''],
+    ['', true, ''],
+    ['', true, ''],
+    ['', true, ''],
   ],
 );
 assert.equal(parseContactList('"12025550101"\n"12025550102"')[0].phone, '12025550101');
@@ -24,6 +24,10 @@ assert.equal(
 assert.equal(
   parseContactList('name,phone,consent,source\nAlice,12025550101,yes,Website')[0].consent,
   true,
+);
+assert.equal(
+  parseContactList('name,phone,consent,source\nBob,12025550102,no,Website')[0].consent,
+  false,
 );
 assert.equal(parseContactList('phone\ninvalid\n12025550101').length, 2);
 assert.throws(() => parseContactList(' \n\n'), /vazia/);
@@ -39,7 +43,7 @@ const parsed = parseContactList(example);
 assert.equal(parsed.length, expected.length);
 assert.equal(parsed[0].phone, expected[0].trim());
 assert.equal(parsed.at(-1).phone, expected.at(-1).trim());
-assert.ok(parsed.every((row) => !row.consent && !row.source && !row.name));
+assert.ok(parsed.every((row) => row.consent && !row.source && !row.name));
 const batches = contactImportBatches(parsed);
 assert.equal(batches.flat().length, parsed.length);
 assert.ok(
@@ -67,7 +71,7 @@ const xlsxPath = 'docs/prospecting-sample.xlsx';
 if (fs.existsSync(xlsxPath)) {
   const workbookRows = parseContactSpreadsheet(fs.readFileSync(xlsxPath).buffer);
   assert.ok(workbookRows.length >= 30, 'prospecting sample should yield contacts');
-  assert.equal(workbookRows[0].consent, false);
+  assert.equal(workbookRows[0].consent, true);
   assert.match(workbookRows[0].phone, /^55\d{10,11}$/);
   assert.ok(workbookRows[0].name);
   assert.match(workbookRows[0].source, /Planilha de prospecção XLSX/);

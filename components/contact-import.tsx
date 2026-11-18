@@ -44,7 +44,7 @@ export default function ContactImport({
       </div>
       <p className="text-xs leading-6 text-slate-500">
         {t(
-          'Na planilha XLSX, o nome usa NOME FANTASIA ou EMPRESA e o telefone recebe o código do Brasil (55) quando necessário. Contatos importados ficam com permissão pendente.',
+          'Na planilha XLSX, o nome usa NOME FANTASIA ou EMPRESA e o telefone recebe o código do Brasil (55) quando necessário. Contatos importados já entram com permissão; use Descadastrar se não quiser enviar.',
         )}
       </p>
       <Button

@@ -79,7 +79,7 @@ function contactFromProspectingRow(
     name,
     phone,
     source: sourceParts.join(' · ').slice(0, 500),
-    consent: false,
+    consent: true,
   };
 }
 
