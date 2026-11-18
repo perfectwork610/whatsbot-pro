@@ -73,7 +73,7 @@ export default function ContactImport({
             if (file.size > MAX_BYTES) throw new Error('Máximo de 5 MB.');
             const lower = file.name.toLowerCase();
             if (lower.endsWith('.xlsx')) {
-              const rows = parseContactSpreadsheet(await file.arrayBuffer());
+              const rows = parseContactSpreadsheet(await file.arrayBuffer(), file.name);
               setSpreadsheetRows(rows);
               setContent('');
               setFileLabel(`${file.name} · ${rows.length}`);

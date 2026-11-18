@@ -58,6 +58,7 @@ function contactFromProspectingRow(
   row: Record<string, unknown>,
   map: Map<string, string>,
   phoneRaw: string,
+  source: string,
 ): ImportedContact | null {
   const phone = normalizeImportPhone(phoneRaw);
   if (!phone) return null;
@@ -65,26 +66,16 @@ function contactFromProspectingRow(
   const company = pick(row, map, 'empresa', 'razao social', 'razão social');
   const partner = pick(row, map, 'socio principal', 'sócio principal');
   const name = (fantasy || company || partner || phone).slice(0, 200);
-  const cnpj = pick(row, map, 'cnpj');
-  const city = pick(row, map, 'cidade');
-  const state = pick(row, map, 'estado', 'uf');
-  const activity = pick(row, map, 'atividade principal');
-  const sourceParts = [
-    'Planilha de prospecção XLSX',
-    cnpj && `CNPJ ${cnpj}`,
-    city && state ? `${city}/${state}` : city || state,
-    activity,
-  ].filter(Boolean);
   return {
     name,
     phone,
-    source: sourceParts.join(' · ').slice(0, 500),
+    source: source.slice(0, 500),
     consent: true,
   };
 }
 
 /** Parse prospecting-style XLSX (EMPRESA, TELEFONE, …) into import rows. */
-export function parseContactSpreadsheet(data: ArrayBuffer): ImportedContact[] {
+export function parseContactSpreadsheet(data: ArrayBuffer, fileName = ''): ImportedContact[] {
   const workbook = read(data, { type: 'array', cellDates: false });
   const sheetName =
     workbook.SheetNames.find((name) => /empresa/i.test(name)) || workbook.SheetNames[0];
@@ -98,6 +89,7 @@ export function parseContactSpreadsheet(data: ArrayBuffer): ImportedContact[] {
       'Use uma planilha XLSX de prospecção com as colunas EMPRESA e TELEFONE, ou importe CSV/TXT.',
     );
   }
+  const source = fileName.trim() || 'Importação XLSX';
   const contacts: ImportedContact[] = [];
   const seen = new Set<string>();
   for (const row of rows) {
@@ -106,7 +98,7 @@ export function parseContactSpreadsheet(data: ArrayBuffer): ImportedContact[] {
       pick(row, map, 'telefone 2', 'telefone2', 'phone 2', 'celular 2'),
     ].filter(Boolean);
     for (const phoneRaw of phones) {
-      const contact = contactFromProspectingRow(row, map, phoneRaw);
+      const contact = contactFromProspectingRow(row, map, phoneRaw, source);
       if (!contact || seen.has(contact.phone)) continue;
       seen.add(contact.phone);
       contacts.push(contact);

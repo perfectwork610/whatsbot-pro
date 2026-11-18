@@ -69,12 +69,16 @@ assert.equal(normalizeImportPhone('(85) 98154-6500'), '5585981546500');
 assert.equal(normalizeImportPhone('5585999999999'), '5585999999999');
 const xlsxPath = 'docs/prospecting-sample.xlsx';
 if (fs.existsSync(xlsxPath)) {
-  const workbookRows = parseContactSpreadsheet(fs.readFileSync(xlsxPath).buffer);
+  const workbookRows = parseContactSpreadsheet(
+    fs.readFileSync(xlsxPath).buffer,
+    'prospecting-sample.xlsx',
+  );
   assert.ok(workbookRows.length >= 30, 'prospecting sample should yield contacts');
   assert.equal(workbookRows[0].consent, true);
   assert.match(workbookRows[0].phone, /^55\d{10,11}$/);
   assert.ok(workbookRows[0].name);
-  assert.match(workbookRows[0].source, /Planilha de prospecção XLSX/);
+  assert.equal(workbookRows[0].source, 'prospecting-sample.xlsx');
+  assert.ok(workbookRows.every((row) => row.source === 'prospecting-sample.xlsx'));
   console.log(
     `Phone-only TXT/CSV, bilingual headers, consent defaults, XLSX prospecting, and payload-size checks passed. Example: ${parsed.length} CSV rows in ${batches.length} batches; XLSX ${workbookRows.length} contacts. No contacts were saved.`,
   );
