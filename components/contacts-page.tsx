@@ -27,7 +27,8 @@ import WhatsAppMark from './whatsapp-mark';
 import { csvDownload } from '@/lib/csv';
 import { contactColumns } from '@/lib/i18n';
 
-type Filter = 'all' | 'yes' | 'no' | 'out';
+type Filter = 'all' | 'yes' | 'out';
+type PermissionStatus = Filter | 'pending';
 export default function ContactsPage({
   contacts,
   busy,
@@ -112,11 +113,11 @@ export default function ContactsPage({
     () => Array.from(new Set(contacts.map((c) => c.source).filter(Boolean))).sort(),
     [contacts],
   );
-  const status = (c: Contact): Filter => (c.optedOut ? 'out' : c.consent ? 'yes' : 'no');
+  const status = (c: Contact): PermissionStatus =>
+    c.optedOut ? 'out' : c.consent ? 'yes' : 'pending';
   const counts = {
     all: contacts.length,
     yes: contacts.filter((c) => status(c) === 'yes').length,
-    no: contacts.filter((c) => status(c) === 'no').length,
     out: contacts.filter((c) => status(c) === 'out').length,
   };
   const filtered = useMemo(
@@ -179,7 +180,6 @@ export default function ContactsPage({
   const tabs: [Filter, string][] = [
     ['all', 'Todos os contatos'],
     ['yes', 'Com permissão'],
-    ['no', 'Sem permissão'],
     ['out', 'Descadastrados'],
   ];
   function name(c: Contact, index: number) {
@@ -198,10 +198,13 @@ export default function ContactsPage({
     );
   }
   function permissionBadge(c: Contact) {
+    const state = status(c);
     return (
-      <span className={`contacts-permission contacts-permission--${status(c)}`}>
-        {status(c) === 'yes' ? <Check size={15} /> : <X size={13} />}{' '}
-        {t(status(c) === 'yes' ? 'Sim' : status(c) === 'out' ? 'Descadastrado' : 'Sem permissão')}
+      <span
+        className={`contacts-permission contacts-permission--${state === 'pending' ? 'no' : state}`}
+      >
+        {state === 'yes' ? <Check size={15} /> : <X size={13} />}{' '}
+        {t(state === 'yes' ? 'Sim' : state === 'out' ? 'Descadastrado' : 'Pendente')}
       </span>
     );
   }

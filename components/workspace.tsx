@@ -596,7 +596,7 @@ export default function Workspace() {
                   />
                 </Label>
                 <label className="flex gap-2 text-sm">
-                  <input type="checkbox" name="consent" />
+                  <input type="checkbox" name="consent" defaultChecked />
                   {t('O contato autorizou receber mensagens')}
                 </label>
                 <Button type="submit" disabled={busy}>

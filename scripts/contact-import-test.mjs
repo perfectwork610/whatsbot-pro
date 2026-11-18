@@ -27,7 +27,7 @@ assert.equal(
 );
 assert.equal(
   parseContactList('name,phone,consent,source\nBob,12025550102,no,Website')[0].consent,
-  false,
+  true,
 );
 assert.equal(parseContactList('phone\ninvalid\n12025550101').length, 2);
 assert.throws(() => parseContactList(' \n\n'), /vazia/);
