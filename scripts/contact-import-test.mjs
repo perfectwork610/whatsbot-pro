@@ -60,6 +60,22 @@ assert.ok(
     (batch) => Buffer.byteLength(JSON.stringify({ action: 'contacts', rows: batch })) < 2_000_000,
   ),
 );
-console.log(
-  `Phone-only TXT/CSV, bilingual headers, consent defaults, and payload-size checks passed. Example: ${parsed.length} rows in ${batches.length} batches. No contacts were saved.`,
-);
+const { parseContactSpreadsheet, normalizeImportPhone } = await import('../lib/xlsx-contacts.ts');
+assert.equal(normalizeImportPhone('(85) 98154-6500'), '5585981546500');
+assert.equal(normalizeImportPhone('5585999999999'), '5585999999999');
+const xlsxPath = 'docs/prospecting-sample.xlsx';
+if (fs.existsSync(xlsxPath)) {
+  const workbookRows = parseContactSpreadsheet(fs.readFileSync(xlsxPath).buffer);
+  assert.ok(workbookRows.length >= 30, 'prospecting sample should yield contacts');
+  assert.equal(workbookRows[0].consent, false);
+  assert.match(workbookRows[0].phone, /^55\d{10,11}$/);
+  assert.ok(workbookRows[0].name);
+  assert.match(workbookRows[0].source, /Planilha de prospecção XLSX/);
+  console.log(
+    `Phone-only TXT/CSV, bilingual headers, consent defaults, XLSX prospecting, and payload-size checks passed. Example: ${parsed.length} CSV rows in ${batches.length} batches; XLSX ${workbookRows.length} contacts. No contacts were saved.`,
+  );
+} else {
+  console.log(
+    `Phone-only TXT/CSV, bilingual headers, consent defaults, and payload-size checks passed. Example: ${parsed.length} rows in ${batches.length} batches. No contacts were saved.`,
+  );
+}

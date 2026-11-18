@@ -495,12 +495,25 @@ export const english: Record<string, string> = {
   'Importação interrompida': 'Import interrupted',
   'Importe CSV ou TXT com um telefone por linha. Não é necessário cabeçalho, nome, consentimento ou origem.':
     'Import CSV or TXT with one phone number per line. No header, name, consent, or source column is required.',
+  'Importe XLSX de prospecção (EMPRESA, TELEFONE…) ou CSV/TXT com um telefone por linha.':
+    'Import a prospecting XLSX (COMPANY, PHONE…) or a CSV/TXT with one phone number per line.',
   'Use números com código do país. Sem nome, o telefone será usado como identificação. Contatos sem consentimento registrado ficam com permissão pendente.':
     'Include the country code. When no name is provided, the phone number is used as the label. Contacts without recorded consent remain pending permission.',
+  'Na planilha XLSX, o nome usa NOME FANTASIA ou EMPRESA e o telefone recebe o código do Brasil (55) quando necessário. Contatos importados ficam com permissão pendente.':
+    'In the XLSX sheet, the name uses trade name or company name, and Brazilian numbers get country code 55 when needed. Imported contacts stay pending permission.',
   'Até 2 MB e 100.000 contatos por arquivo. Listas grandes são importadas em lotes; duplicados são ignorados. CSV com colunas em português ou inglês continua aceito.':
     'Up to 2 MB and 100,000 contacts per file. Large lists are imported in batches; duplicates are skipped. CSV files with English or Portuguese columns are still supported.',
+  'Até 5 MB e 100.000 contatos por arquivo. Listas grandes são importadas em lotes; duplicados são ignorados. XLSX de prospecção e CSV/TXT continuam aceitos.':
+    'Up to 5 MB and 100,000 contacts per file. Large lists are imported in batches; duplicates are skipped. Prospecting XLSX and CSV/TXT are both supported.',
   'Arquivo CSV ou TXT': 'CSV or TXT file',
+  'Arquivo CSV, TXT ou XLSX': 'CSV, TXT, or XLSX file',
   'Lista de telefones ou conteúdo CSV': 'Phone list or CSV content',
+  'contatos prontos': 'contacts ready',
+  'Exemplo:': 'Example:',
+  'Use uma planilha XLSX de prospecção com as colunas EMPRESA e TELEFONE, ou importe CSV/TXT.':
+    'Use a prospecting XLSX with COMPANY and PHONE columns, or import CSV/TXT.',
+  'A planilha está vazia.': 'The spreadsheet is empty.',
+  'Máximo de 5 MB.': 'Maximum 5 MB.',
   'Progresso da importação': 'Import progress',
   'Importando contatos…': 'Importing contacts…',
   'A lista está vazia. Adicione pelo menos um telefone.':

@@ -45,25 +45,40 @@ export async function POST(req: NextRequest) {
         let added = 0,
           duplicates = 0,
           invalid = 0;
-        const existingPhones = new Set(s.contacts.map((contact) => contact.phone));
+        // Soft-deleted contacts are not on the current list; reimport may restore them.
+        const activePhones = new Set(
+          s.contacts.filter((contact) => !contact.deletedAt).map((contact) => contact.phone),
+        );
         for (const row of b.rows) {
           const phone = text(row.phone).replace(/[\s()+.\-]/g, '');
           if (!/^[1-9]\d{7,14}$/.test(phone)) {
             invalid++;
             continue;
           }
-          if (existingPhones.has(phone)) {
+          if (activePhones.has(phone)) {
             duplicates++;
             continue;
           }
-          existingPhones.add(phone);
+          activePhones.add(phone);
           const source = text(row.source, 500);
+          const name = text(row.name) || phone;
+          const consent = row.consent === true && !!source;
+          const removed = s.contacts.find((contact) => contact.phone === phone && contact.deletedAt);
+          if (removed) {
+            removed.deletedAt = undefined;
+            removed.name = name;
+            removed.source = source;
+            // Restore to the current list without bypassing a prior opt-out.
+            removed.consent = consent && !removed.optedOut;
+            added++;
+            continue;
+          }
           s.contacts.push({
             id: crypto.randomUUID(),
-            name: text(row.name) || phone,
+            name,
             phone,
             source,
-            consent: row.consent === true && !!source,
+            consent,
             optedOut: false,
             createdAt: new Date().toISOString(),
           });

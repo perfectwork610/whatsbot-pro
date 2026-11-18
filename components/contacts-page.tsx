@@ -287,36 +287,11 @@ export default function ContactsPage({
           <h1>{t('Contatos')}</h1>
           <p>{t('Gerencie seus contatos do WhatsApp, organize listas e controle permissões.')}</p>
         </div>
-        <div className="contacts-heading-actions">
-          <button onClick={onImport}>
-            <Upload size={18} />
-            {t('Importar lista')}
-          </button>
-          <button
-            onClick={() =>
-              exportRows(selected.size ? filtered.filter((c) => selected.has(c.id)) : filtered)
-            }
-          >
-            <Download size={18} />
-            {t('Exportar')}
-            {selected.size > 0 && ` (${number(selected.size)})`}
-          </button>
-          <button className="contacts-primary" onClick={onAdd}>
-            <Plus size={20} />
-            {t('Adicionar contato')}
-          </button>
-        </div>
-      </header>
-      {removed.length > 0 && <div className="contacts-removal-notice" role="status">
-        <span>{number(removed.length)} {t('contatos removidos')}</span>
-        <button disabled={busy} onClick={async () => {
-          if (await onRestore(removed)) setRemoved([]);
-        }}>{t('Desfazer')}</button>
-      </div>}
+
       <div className="contacts-stats">
         {[
           {
-            label: 'Total de contatos',
+            label: 'Total',
             value: contacts.length,
             icon: Users,
             tone: 'green',
@@ -361,7 +336,8 @@ export default function ContactsPage({
           </section>
         ))}
       </div>
-      <section className="contacts-panel">
+      </header>
+      <div className="contacts-command-row">
         <div className="contacts-tabs" role="tablist" aria-label={t('Filtrar por permissão')}>
           {tabs.map(([value, label]) => (
             <button
@@ -374,6 +350,33 @@ export default function ContactsPage({
             </button>
           ))}
         </div>
+        <div className="contacts-heading-actions">
+          <button onClick={onImport}>
+            <Upload size={18} />
+            {t('Importar lista')}
+          </button>
+          <button
+            onClick={() =>
+              exportRows(selected.size ? filtered.filter((c) => selected.has(c.id)) : filtered)
+            }
+          >
+            <Download size={18} />
+            {t('Exportar')}
+            {selected.size > 0 && ` (${number(selected.size)})`}
+          </button>
+          <button className="contacts-primary" onClick={onAdd}>
+            <Plus size={20} />
+            {t('Adicionar contato')}
+          </button>
+        </div>
+      </div>
+      {removed.length > 0 && <div className="contacts-removal-notice" role="status">
+        <span>{number(removed.length)} {t('contatos removidos')}</span>
+        <button disabled={busy} onClick={async () => {
+          if (await onRestore(removed)) setRemoved([]);
+        }}>{t('Desfazer')}</button>
+      </div>}
+      <section className="contacts-panel">
         <div className="contacts-controls">
           <label className="contacts-search">
             <Search size={19} />
