@@ -90,7 +90,7 @@ export default function Workspace() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const [consentContactId, setConsentContactId] = useState('');
+  const [consentContactIds, setConsentContactIds] = useState<string[]>([]);
   const modalPanel = useRef<HTMLDivElement>(null);
   const modalBackdropPressed = useRef(false);
   useEffect(() => {
@@ -404,13 +404,26 @@ export default function Workspace() {
               onPermission={(contact) => {
                 if (contact.consent && !contact.optedOut)
                   void act(
-                    { action: 'consent', id: contact.id, consent: false },
+                    { action: 'consent', ids: [contact.id], consent: false },
                     'Contato descadastrado.',
                   );
                 else {
-                  setConsentContactId(contact.id);
+                  setConsentContactIds([contact.id]);
                   setModal('consent');
                 }
+              }}
+              onPermissionSelected={(contacts, grant) => {
+                if (!grant) {
+                  void act(
+                    { action: 'consent', ids: contacts.map((c) => c.id), consent: false },
+                    contacts.length === 1
+                      ? 'Contato descadastrado.'
+                      : `${contacts.length} contatos descadastrados.`,
+                  );
+                  return;
+                }
+                setConsentContactIds(contacts.map((c) => c.id));
+                setModal('consent');
               }}
             />
           )}
@@ -513,16 +526,27 @@ export default function Workspace() {
                   void act(
                     {
                       action: 'consent',
-                      id: consentContactId,
+                      ids: consentContactIds,
                       consent: true,
                       source: new FormData(event.currentTarget).get('source'),
                     },
-                    'Consentimento registrado.',
+                    consentContactIds.length === 1
+                      ? 'Consentimento registrado.'
+                      : `Permissão registrada para ${consentContactIds.length} contatos.`,
                     true,
                   );
                 }}
               >
-                <p>{t('Informe a origem e a data do novo consentimento:')}</p>
+                <p>
+                  {consentContactIds.length > 1
+                    ? t('Informe a origem e a data do consentimento para os contatos selecionados:')
+                    : t('Informe a origem e a data do novo consentimento:')}
+                </p>
+                {consentContactIds.length > 1 && (
+                  <p className="text-sm text-slate-500">
+                    {consentContactIds.length} {t('contatos selecionados')}
+                  </p>
+                )}
                 <Label>
                   {t('Origem e data do consentimento')}
                   <input

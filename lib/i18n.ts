@@ -44,6 +44,9 @@ export const english: Record<string, string> = {
   'Remover contatos': 'Remove contacts',
   'contatos selecionados': 'selected contacts',
   'Remover selecionados': 'Remove selected',
+  'Descadastrar selecionados': 'Unsubscribe selected',
+  'Informe a origem e a data do consentimento para os contatos selecionados:':
+    'Enter the consent source and date for the selected contacts:',
   'contatos removidos': 'contacts removed',
   'Contatos removidos.': 'Contacts removed.',
   'Contatos restaurados. Registre a permissão antes de enviar novamente.': 'Contacts restored. Record permission before sending again.',
@@ -953,6 +956,16 @@ export function translate(locale: Locale, message: string): string {
       /^Permissão atualizada para (.+): (true|false)\.$/,
       (phone, value) => `Permission updated for ${phone}: ${value}.`,
     ],
+    [
+      /^Permissão registrada para (\d+) contatos\.$/,
+      (n) => `Permission recorded for ${n} contacts.`,
+    ],
+    [
+      /^Permissão registrada para (\d+) contato\(s\)\.$/,
+      (n) => `Permission recorded for ${n} contact(s).`,
+    ],
+    [/^(\d+) contatos descadastrados\.$/, (n) => `${n} contacts unsubscribed.`],
+    [/^Descadastrados (\d+) contato\(s\)\.$/, (n) => `${n} contact(s) unsubscribed.`],
     [/^Conta (.+) cadastrada\.$/, (name) => `Account ${name} added.`],
     [/^Modelos sincronizados: (.+)\.$/, (name) => `Templates synced: ${name}.`],
     [

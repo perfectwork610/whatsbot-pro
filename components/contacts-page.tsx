@@ -35,6 +35,7 @@ export default function ContactsPage({
   onAdd,
   onSave,
   onPermission,
+  onPermissionSelected,
   onRemove,
   onRestore,
 }: {
@@ -44,6 +45,7 @@ export default function ContactsPage({
   onAdd: () => void;
   onSave: (c: Pick<Contact, 'id' | 'name' | 'phone' | 'lists'>) => Promise<boolean>;
   onPermission: (c: Contact) => void;
+  onPermissionSelected: (contacts: Contact[], grant: boolean) => void;
   onRemove: (ids: string[]) => Promise<boolean>;
   onRestore: (ids: string[]) => Promise<boolean>;
 }) {
@@ -149,11 +151,21 @@ export default function ContactsPage({
     });
   const allChecked = !!filtered.length && filtered.every((c) => selected.has(c.id));
   const selectAll = () => setSelected(new Set(filtered.map((c) => c.id)));
+  const pageChecked = !!rows.length && rows.every((c) => selected.has(c.id));
+  const pagePartial = rows.some((c) => selected.has(c.id)) && !pageChecked;
+  const togglePage = () =>
+    setSelected((old) => {
+      const next = new Set(old);
+      for (const c of rows) {
+        if (pageChecked) next.delete(c.id);
+        else next.add(c.id);
+      }
+      return next;
+    });
   const selectionCheckbox = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (selectionCheckbox.current)
-      selectionCheckbox.current.indeterminate = selected.size > 0 && !allChecked;
-  }, [selected, allChecked, view]);
+    if (selectionCheckbox.current) selectionCheckbox.current.indeterminate = pagePartial;
+  }, [pagePartial, view]);
   const pages = Array.from(
     new Set([
       0,
@@ -443,9 +455,28 @@ export default function ContactsPage({
           </button>
           <span>{t('Em todas as páginas, respeitando os filtros atuais.')}</span>
           {selected.size > 0 && <button disabled={busy} onClick={() => setSelected(new Set())}>{t('Limpar seleção')}</button>}
-          {selected.size > 0 && <button className="contacts-selected-remove" disabled={busy} onClick={() => showRemoval(contacts.filter(c => selected.has(c.id)))}>
-            <Trash2 size={16} />{t('Remover selecionados')} ({number(selected.size)})
-          </button>}
+          {selected.size > 0 && (() => {
+            const chosen = contacts.filter((c) => selected.has(c.id));
+            const toGrant = chosen.filter((c) => !c.consent || c.optedOut);
+            const toRevoke = chosen.filter((c) => c.consent && !c.optedOut);
+            return <>
+              {toGrant.length > 0 && <button disabled={busy} className="contacts-selected-permission" onClick={() => {
+                onPermissionSelected(toGrant, true);
+                setSelected(new Set());
+              }}>
+                <ShieldCheck size={16} />{t('Registrar permissão')} ({number(toGrant.length)})
+              </button>}
+              {toRevoke.length > 0 && <button disabled={busy} className="contacts-selected-permission is-revoke" onClick={() => {
+                onPermissionSelected(toRevoke, false);
+                setSelected(new Set());
+              }}>
+                <X size={16} />{t('Descadastrar selecionados')} ({number(toRevoke.length)})
+              </button>}
+              <button className="contacts-selected-remove" disabled={busy} onClick={() => showRemoval(chosen)}>
+                <Trash2 size={16} />{t('Remover selecionados')} ({number(selected.size)})
+              </button>
+            </>;
+          })()}
         </div>}
         <div className={`contacts-results contacts-results--${view}`}>
           {view === 'grid' ? (
@@ -473,14 +504,15 @@ export default function ContactsPage({
                       <input
                         type="checkbox"
                         ref={selectionCheckbox}
-                        aria-label={t('Selecionar todos os contatos')}
-                        aria-checked={selected.size > 0 && !allChecked ? 'mixed' : allChecked}
-                        title={t('Em todas as páginas, respeitando os filtros atuais.')}
-                        checked={allChecked}
-                        onChange={() => allChecked ? setSelected(new Set()) : selectAll()}
+                        aria-label={t('Selecionar página')}
+                        aria-checked={pagePartial ? 'mixed' : pageChecked}
+                        title={t('Selecionar página')}
+                        checked={pageChecked}
+                        onChange={togglePage}
                       />
                     </th>
                     {[
+                      'No',
                       'Nome',
                       'Telefone',
                       'Listas',
@@ -489,7 +521,9 @@ export default function ContactsPage({
                       'Adicionado em',
                       'Ações',
                     ].map((x) => (
-                      <th key={x}>{t(x)}</th>
+                      <th key={x} className={x === 'No' ? 'contacts-index' : undefined}>
+                        {x === 'No' ? 'No' : t(x)}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -504,6 +538,7 @@ export default function ContactsPage({
                           onChange={() => toggle(c.id)}
                         />
                       </td>
+                      <td className="contacts-index">{number(current * size + i + 1)}</td>
                       <td>{name(c, i)}</td>
                       <td>
                         <span className="contacts-phone">

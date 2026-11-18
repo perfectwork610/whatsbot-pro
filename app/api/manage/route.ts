@@ -148,15 +148,37 @@ export async function POST(req: NextRequest) {
         audit(s, 'Contato atualizado.');
       });
     } else if (b.action === 'consent') {
-      update((s) => {
-        const c = s.contacts.find((c) => c.id === b.id);
-        if (!c || c.deletedAt) throw new Error('Contato inexistente.');
-        c.consent = b.consent === true;
-        if (c.consent) {
-          c.source = required(b.source, 'Comprovante de consentimento', 500);
-          c.optedOut = false;
-        } else c.optedOut = true;
-        audit(s, `Permissão atualizada para ${c.phone}: ${c.consent}.`);
+      const ids = Array.isArray(b.ids)
+        ? b.ids
+        : typeof b.id === 'string'
+          ? [b.id]
+          : null;
+      if (
+        !ids?.length ||
+        ids.length > 50000 ||
+        ids.some((id: unknown) => typeof id !== 'string')
+      )
+        throw new Error('Selecione contatos válidos.');
+      const grant = b.consent === true;
+      const source = grant ? required(b.source, 'Comprovante de consentimento', 500) : '';
+      result = update((s) => {
+        const selected = new Set<string>(ids);
+        const contacts = s.contacts.filter((c) => selected.has(c.id) && !c.deletedAt);
+        if (contacts.length !== selected.size) throw new Error('Contato inexistente.');
+        for (const contact of contacts) {
+          contact.consent = grant;
+          if (grant) {
+            contact.source = source;
+            contact.optedOut = false;
+          } else contact.optedOut = true;
+        }
+        audit(
+          s,
+          grant
+            ? `Permissão registrada para ${contacts.length} contato(s).`
+            : `Descadastrados ${contacts.length} contato(s).`,
+        );
+        return { count: contacts.length };
       });
     } else if (b.action === 'account') {
       const name = required(b.name, 'Nome');
