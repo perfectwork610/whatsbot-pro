@@ -65,10 +65,13 @@ function contactFromProspectingRow(
   const fantasy = pick(row, map, 'nome fantasia', 'nome_fantasia');
   const company = pick(row, map, 'empresa', 'razao social', 'razão social');
   const partner = pick(row, map, 'socio principal', 'sócio principal');
-  const name = (fantasy || company || partner || phone).slice(0, 200);
+  // Person in charge for {{nome}}; company/trade name for {{empresa}}.
+  const business = (company || fantasy).slice(0, 200);
+  const name = (partner || fantasy || company || phone).slice(0, 200);
   return {
     name,
     phone,
+    company: business || undefined,
     source: source.slice(0, 500),
     consent: true,
   };

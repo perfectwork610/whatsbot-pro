@@ -61,12 +61,14 @@ export async function POST(req: NextRequest) {
           }
           activePhones.add(phone);
           const name = text(row.name) || phone;
+          const company = text(row.company, 200);
           const consent = true;
           const source = text(row.source, 500) || 'Importação';
           const removed = s.contacts.find((contact) => contact.phone === phone && contact.deletedAt);
           if (removed) {
             removed.deletedAt = undefined;
             removed.name = name;
+            removed.company = company || undefined;
             removed.source = source;
             // Restore to the current list without bypassing a prior opt-out.
             removed.consent = consent && !removed.optedOut;
@@ -76,6 +78,7 @@ export async function POST(req: NextRequest) {
           s.contacts.push({
             id: crypto.randomUUID(),
             name,
+            ...(company ? { company } : {}),
             phone,
             source,
             consent,

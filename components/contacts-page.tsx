@@ -128,7 +128,7 @@ export default function ContactsPage({
           (permission === 'all' || status(c) === permission) &&
           (list === 'all' || c.lists?.includes(list)) &&
           (source === 'all' || c.source === source) &&
-          (c.name + ' ' + c.phone + ' ' + (c.lists || []).join(' '))
+          (c.name + ' ' + (c.company || '') + ' ' + c.phone + ' ' + (c.lists || []).join(' '))
             .toLocaleLowerCase()
             .includes(query.trim().toLocaleLowerCase()),
       ),
@@ -397,7 +397,7 @@ export default function ContactsPage({
             <Search size={19} />
             <input
               aria-label={t('Buscar contatos')}
-              placeholder={t('Buscar por nome, telefone ou lista...')}
+              placeholder={t('Buscar por nome, empresa, telefone ou lista...')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -489,6 +489,7 @@ export default function ContactsPage({
                   <input type="checkbox" aria-label={`${t('Selecionar contato')}: ${c.name}`}
                     checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                   {name(c, i)}
+                  {c.company && <p className="contacts-company">{c.company}</p>}
                   <p>
                     <WhatsAppMark variant="whatsapp" /> +{c.phone}
                   </p>
@@ -517,6 +518,7 @@ export default function ContactsPage({
                     {[
                       'No',
                       'Nome',
+                      'Empresa',
                       'Telefone',
                       'Listas',
                       'Permissão',
@@ -543,6 +545,9 @@ export default function ContactsPage({
                       </td>
                       <td className="contacts-index">{number(current * size + i + 1)}</td>
                       <td>{name(c, i)}</td>
+                      <td className="contacts-company" title={c.company || undefined}>
+                        {c.company || '—'}
+                      </td>
                       <td>
                         <span className="contacts-phone">
                           <WhatsAppMark variant="whatsapp" />+{c.phone}

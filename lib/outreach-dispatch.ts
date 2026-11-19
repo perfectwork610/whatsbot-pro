@@ -58,7 +58,7 @@ export async function dispatchOutreach(
     const text = renderOutreachText(
       run.message,
       contact.name,
-      store.read().workspace?.name || 'WhatsBot Pro',
+      contact.company || store.read().workspace?.name || 'WhatsBot Pro',
     );
     store.update((state) => {
       state.outreachTasks!.find((j) => j.id === task.id)!.phase = 'sending';

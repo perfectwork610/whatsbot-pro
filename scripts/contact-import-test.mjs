@@ -79,6 +79,10 @@ if (fs.existsSync(xlsxPath)) {
   assert.ok(workbookRows[0].name);
   assert.equal(workbookRows[0].source, 'prospecting-sample.xlsx');
   assert.ok(workbookRows.every((row) => row.source === 'prospecting-sample.xlsx'));
+  assert.ok(
+    workbookRows.some((row) => row.company),
+    'prospecting rows should carry company for {{empresa}}',
+  );
   console.log(
     `Phone-only TXT/CSV, bilingual headers, consent defaults, XLSX prospecting, and payload-size checks passed. Example: ${parsed.length} CSV rows in ${batches.length} batches; XLSX ${workbookRows.length} contacts. No contacts were saved.`,
   );

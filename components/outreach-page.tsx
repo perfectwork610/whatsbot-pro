@@ -24,6 +24,10 @@ import type { OutreachSession, OutreachRun, OutreachTask } from '@/lib/outreach-
 import { useLanguage } from './language';
 import WhatsAppMark from './whatsapp-mark';
 import { renderOutreachText } from '@/lib/outreach-engine';
+
+const DEFAULT_OUTREACH_MESSAGE =
+  'Olá {{nome}}, tudo bem?\nFalo da parceria com a {{empresa}}.';
+
 type Snapshot = {
   sessions: OutreachSession[];
   runs: OutreachRun[];
@@ -55,7 +59,7 @@ export default function OutreachPage({
     [senderIds, setSenderIds] = useState<string[]>([]),
     [recipientIds, setRecipientIds] = useState<string[]>([]),
     [name, setName] = useState(''),
-    [message, setMessage] = useState(''),
+    [message, setMessage] = useState(DEFAULT_OUTREACH_MESSAGE),
     [delay, setDelay] = useState(30),
     [saveContacts, setSaveContacts] = useState(true),
     [syncToPhone, setSyncToPhone] = useState(false),
@@ -149,7 +153,7 @@ export default function OutreachPage({
   function showRun() {
     setSearch('');
     setName('');
-    setMessage('');
+    setMessage(DEFAULT_OUTREACH_MESSAGE);
     setRecipientIds([]);
     setSenderIds(
       sessions
@@ -724,17 +728,25 @@ export default function OutreachPage({
               rows={4}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder={t('Use {{nome}} ou {{name}} para personalizar.')}
+              placeholder={t(
+                'Use {{nome}} e {{empresa}} para personalizar (ou {{name}} / {{business}}).',
+              )}
             />
           </label>
           <div className="outreach-preview">
             <strong>{t('Prévia')}</strong>
             <p>
-              {renderOutreachText(
-                message,
-                contacts.find((c) => recipientIds.includes(c.id))?.name || t('Cliente'),
-                'WhatsBot Pro',
-              ) || '…'}
+              {(() => {
+                const sample =
+                  contacts.find((c) => recipientIds.includes(c.id)) || contacts[0];
+                return (
+                  renderOutreachText(
+                    message,
+                    sample?.name || t('Cliente'),
+                    sample?.company || 'WhatsBot Pro',
+                  ) || '…'
+                );
+              })()}
             </p>
           </div>
           <label>

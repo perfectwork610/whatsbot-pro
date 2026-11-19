@@ -4,6 +4,8 @@ export type Contact = {
   lists?: string[];
   id: string;
   name: string;
+  /** Company / trade name for {{empresa}} personalization. */
+  company?: string;
   phone: string;
   consent: boolean;
   source: string;

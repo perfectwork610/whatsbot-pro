@@ -41,12 +41,19 @@ export function parseCSV(input: string): Record<string, string>[] {
   }
   throw new Error('Use uma lista de telefones ou um CSV com a coluna telefone.');
 }
-export type ImportedContact = { name: string; phone: string; source: string; consent: boolean };
+export type ImportedContact = {
+  name: string;
+  phone: string;
+  source: string;
+  consent: boolean;
+  company?: string;
+};
 export function parseContactList(input: string): ImportedContact[] {
   return parseCSV(input).map((row) => ({
     name: (row.nome || row.name || '').slice(0, 200),
     phone: (row.telefone || row.phone || row.numero || row['número'] || '').slice(0, 200),
     source: (row.origem || row.source || '').slice(0, 500),
+    company: (row.empresa || row.company || row.business || '').slice(0, 200) || undefined,
     consent: true,
   }));
 }
