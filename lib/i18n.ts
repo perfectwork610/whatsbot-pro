@@ -90,6 +90,24 @@ export const english: Record<string, string> = {
   Conectada: 'Connected',
   Autenticada: 'Authenticated',
   'Escaneie o QR': 'Scan the QR',
+  'Digite o código': 'Enter the code',
+  'Conectar WhatsApp': 'Link WhatsApp',
+  'Como conectar': 'How to link',
+  'Código do telefone (sem QR)': 'Phone code (no QR)',
+  'Escanear QR code': 'Scan QR code',
+  'Telefone do WhatsApp com código do país': 'WhatsApp phone with country code',
+  'Informe o telefone do WhatsApp com código do país.':
+    'Enter the WhatsApp phone number with country code.',
+  'Clique em conectar para gerar o código do telefone.':
+    'Click Connect to generate the phone pairing code.',
+  'Preparando a conexão. O código aparecerá aqui.':
+    'Preparing the connection. The code will appear here.',
+  'No WhatsApp: Dispositivos conectados → Conectar um dispositivo → Conectar com número de telefone. Digite este código.':
+    'In WhatsApp: Linked devices → Link a device → Link with phone number. Enter this code.',
+  'Depois de adicionar, clique em Conectar e digite o código no WhatsApp do telefone. As credenciais ficam somente neste servidor.':
+    'After adding, click Connect and enter the code in WhatsApp on the phone. Credentials stay only on this server.',
+  'Depois de adicionar, clique em Conectar. As credenciais ficam somente neste servidor.':
+    'After adding, click Connect. Credentials stay only on this server.',
   Conectando: 'Connecting',
   'Aguardando worker': 'Waiting for worker',
   Desconectada: 'Disconnected',
@@ -125,6 +143,8 @@ export const english: Record<string, string> = {
   'Este robô usa WhatsApp Web. Campanhas em massa e contas da API oficial continuam em suas próprias páginas.':
     'This robot uses WhatsApp Web. Bulk campaigns and official API accounts remain on their own pages.',
   'Ver conexões QR': 'View QR connections',
+  'Ver conexões WhatsApp': 'View WhatsApp connections',
+  'Conexões WhatsApp': 'WhatsApp connections',
   'Conecte um número por QR, escolha contatos autorizados e escreva a mensagem. Não é necessário um modelo da Meta.':
     'Link a number by QR, choose authorized contacts, and write your message. No Meta template is required.',
   'Uma fila para o trabalho individual': 'A queue for individual outreach',

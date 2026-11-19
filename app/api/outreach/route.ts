@@ -24,6 +24,10 @@ export async function GET() {
       sessions: (state.outreachSessions || []).map((session) => ({
         ...session,
         qr: session.qrExpiresAt && session.qrExpiresAt > Date.now() ? session.qr : undefined,
+        pairingCode:
+          session.pairingCodeExpiresAt && session.pairingCodeExpiresAt > Date.now()
+            ? session.pairingCode
+            : undefined,
       })),
       runs: (state.outreachRuns || []).filter((run) => !run.deletedAt),
       tasks: (state.outreachTasks || []).filter((task) =>
@@ -62,6 +66,12 @@ export async function POST(request: NextRequest) {
           throw new Error('Conexões de teste só funcionam na simulação.');
         if (state.outreachSessions.length >= 20)
           throw new Error('Máximo de 20 conexões por instalação.');
+        const authMethod = body.authMethod === 'qr' ? 'qr' : 'pairing';
+        const pairingPhone = string(body.pairingPhone, 20).replace(/[\s()+.\-]/g, '');
+        if (!body.testOnly && authMethod === 'pairing') {
+          if (!/^[1-9]\d{7,14}$/.test(pairingPhone))
+            throw new Error('Informe o telefone do WhatsApp com código do país.');
+        }
         const id = crypto.randomUUID();
         state.outreachSessions.push({
           id,
@@ -69,6 +79,8 @@ export async function POST(request: NextRequest) {
           dailyLimit: limit,
           enabled: true,
           testOnly: body.testOnly === true,
+          authMethod: body.testOnly === true ? 'qr' : authMethod,
+          ...(authMethod === 'pairing' && pairingPhone ? { pairingPhone } : {}),
           desiredConnected: false,
           generation: 0,
           status: 'disconnected',
@@ -93,10 +105,12 @@ export async function POST(request: NextRequest) {
           }
         } else {
           // Repeated clicks/poll retries must not restart a browser that is
-          // already starting, showing a QR, or connected.
+          // already starting, showing a QR/code, or connected.
           if (body.action === 'session-connect' && session.desiredConnected &&
               outreachWorkerLive(state) &&
-              ['queued', 'connecting', 'qr', 'authenticated', 'ready'].includes(session.status))
+              ['queued', 'connecting', 'qr', 'pairing', 'authenticated', 'ready'].includes(
+                session.status,
+              ))
             return;
           session.generation++;
           session.desiredConnected = body.action === 'session-connect';
@@ -104,6 +118,8 @@ export async function POST(request: NextRequest) {
           session.status = session.desiredConnected ? 'queued' : 'disconnected';
           session.qr = undefined;
           session.qrExpiresAt = undefined;
+          session.pairingCode = undefined;
+          session.pairingCodeExpiresAt = undefined;
           session.error = undefined;
         }
         session.updatedAt = Date.now();
@@ -122,6 +138,8 @@ export async function POST(request: NextRequest) {
         session.status = 'disconnected';
         session.qr = undefined;
         session.qrExpiresAt = undefined;
+        session.pairingCode = undefined;
+        session.pairingCodeExpiresAt = undefined;
         session.error = undefined;
         state.outreachRuns
           .filter((run) => run.senderIds.includes(session.id) && run.status === 'running')

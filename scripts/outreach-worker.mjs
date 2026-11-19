@@ -145,6 +145,10 @@ async function connectionCycle() {
     }
     if (clients.has(session.id)) continue;
     const executablePath = browserPath();
+    const usePairing =
+      session.authMethod === 'pairing' &&
+      typeof session.pairingPhone === 'string' &&
+      /^[1-9]\d{7,14}$/.test(session.pairingPhone);
     const client = new OutreachClient({
       authStrategy: new LocalAuth({
         clientId: session.id,
@@ -156,6 +160,15 @@ async function connectionCycle() {
       deviceName: 'WhatsBot Individual Outreach',
       userAgent: false,
       puppeteer: { headless: true, ...(executablePath ? { executablePath } : {}) },
+      ...(usePairing
+        ? {
+            pairWithPhoneNumber: {
+              phoneNumber: session.pairingPhone,
+              showNotification: true,
+              intervalMs: 180000,
+            },
+          }
+        : {}),
     });
     const entry = { client, generation: session.generation };
     clients.set(session.id, entry);
@@ -165,14 +178,19 @@ async function connectionCycle() {
         error: errorText(error),
         desiredConnected: false,
         qr: undefined,
+        pairingCode: undefined,
+        pairingCodeExpiresAt: undefined,
       });
     });
     patch(session.id, session.generation, {
       status: 'connecting',
       qr: undefined,
+      pairingCode: undefined,
+      pairingCodeExpiresAt: undefined,
       error: undefined,
     });
     client.on('qr', async (qr) => {
+      if (usePairing) return;
       try {
         const png = await QRCode.toDataURL(qr, {
           width: 280,
@@ -185,6 +203,8 @@ async function connectionCycle() {
             status: 'qr',
             qr: png,
             qrExpiresAt: Date.now() + 55000,
+            pairingCode: undefined,
+            pairingCodeExpiresAt: undefined,
           });
       } catch (error) {
         patch(session.id, session.generation, {
@@ -194,11 +214,28 @@ async function connectionCycle() {
         });
       }
     });
+    client.on('code', (code) => {
+      const current = read().outreachSessions?.find((s) => s.id === session.id);
+      if (!current?.desiredConnected || current.generation !== session.generation) return;
+      const normalized = String(code || '')
+        .replace(/\s+/g, '')
+        .toUpperCase();
+      if (!normalized) return;
+      patch(session.id, session.generation, {
+        status: 'pairing',
+        pairingCode: normalized,
+        pairingCodeExpiresAt: Date.now() + 170000,
+        qr: undefined,
+        qrExpiresAt: undefined,
+      });
+    });
     client.on('authenticated', () =>
       patch(session.id, session.generation, {
         status: 'authenticated',
         qr: undefined,
         qrExpiresAt: undefined,
+        pairingCode: undefined,
+        pairingCodeExpiresAt: undefined,
       }),
     );
     client.on('ready', () =>
@@ -206,6 +243,8 @@ async function connectionCycle() {
         status: 'ready',
         phone: client.info?.wid?._serialized?.endsWith('@c.us') ? client.info.wid.user : undefined,
         qr: undefined,
+        pairingCode: undefined,
+        pairingCodeExpiresAt: undefined,
         error: undefined,
       }),
     );
@@ -215,6 +254,8 @@ async function connectionCycle() {
         error: 'Falha na autenticação. Conecte novamente.',
         desiredConnected: false,
         qr: undefined,
+        pairingCode: undefined,
+        pairingCodeExpiresAt: undefined,
       }),
     );
     client.on('disconnected', () =>
@@ -222,6 +263,8 @@ async function connectionCycle() {
         status: 'disconnected',
         desiredConnected: false,
         qr: undefined,
+        pairingCode: undefined,
+        pairingCodeExpiresAt: undefined,
       }),
     );
     client.on('message', (message) => {

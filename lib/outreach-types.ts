@@ -4,12 +4,26 @@ export type OutreachSession = {
   dailyLimit: number;
   enabled: boolean;
   testOnly: boolean;
+  /** How the phone is linked: QR scan or 8-character pairing code. */
+  authMethod?: 'qr' | 'pairing';
+  /** E.164 digits without symbols, used for pairing-code link. */
+  pairingPhone?: string;
   desiredConnected: boolean;
   generation: number;
-  status: 'disconnected' | 'queued' | 'connecting' | 'qr' | 'authenticated' | 'ready' | 'error';
+  status:
+    | 'disconnected'
+    | 'queued'
+    | 'connecting'
+    | 'qr'
+    | 'pairing'
+    | 'authenticated'
+    | 'ready'
+    | 'error';
   phone?: string;
   qr?: string;
   qrExpiresAt?: number;
+  pairingCode?: string;
+  pairingCodeExpiresAt?: number;
   error?: string;
   updatedAt: number;
 };

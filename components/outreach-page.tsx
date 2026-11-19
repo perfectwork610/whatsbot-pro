@@ -55,6 +55,8 @@ export default function OutreachPage({
     [search, setSearch] = useState(''),
     [sessionName, setSessionName] = useState(''),
     [limit, setLimit] = useState(20),
+    [authMethod, setAuthMethod] = useState<'pairing' | 'qr'>('pairing'),
+    [pairingPhone, setPairingPhone] = useState(''),
     [testOnly, setTestOnly] = useState(false),
     [senderIds, setSenderIds] = useState<string[]>([]),
     [recipientIds, setRecipientIds] = useState<string[]>([]),
@@ -145,6 +147,7 @@ export default function OutreachPage({
     queued: 'Aguardando worker',
     connecting: 'Conectando',
     qr: 'Escaneie o QR',
+    pairing: 'Digite o código',
     authenticated: 'Autenticada',
     ready: 'Conectada',
     error: 'Erro',
@@ -169,9 +172,15 @@ export default function OutreachPage({
   function showConnection() {
     setSessionName('');
     setLimit(20);
+    setAuthMethod('pairing');
+    setPairingPhone('');
     setTestOnly(false);
     setError('');
     connectionDialog.current?.showModal();
+  }
+  function formatPairingCode(code: string) {
+    const clean = code.replace(/\s+/g, '').toUpperCase();
+    return clean.length === 8 ? `${clean.slice(0, 4)}-${clean.slice(4)}` : clean;
   }
   function showDetails(id: string) {
     setDetail(id);
@@ -248,7 +257,7 @@ export default function OutreachPage({
       </div>
       <div className="outreach-stats">
         {[
-          { label: 'Conexões QR', value: sessions.length, icon: QrCode },
+          { label: 'Conexões WhatsApp', value: sessions.length, icon: QrCode },
           {
             label: 'Filas individuais',
             value: runs.filter((r) => r.connector === 'whatsapp-web').length,
@@ -280,7 +289,7 @@ export default function OutreachPage({
         <div role="tablist" aria-label={t('Fluxo do robô')}>
           {[
             { value: 'runs', label: 'Filas de contato' },
-            { value: 'connections', label: 'Conexões QR' },
+            { value: 'connections', label: 'Conexões WhatsApp' },
           ].map((item) => (
             <button
               role="tab"
@@ -294,7 +303,7 @@ export default function OutreachPage({
         </div>
         <button onClick={showConnection}>
           <Plus size={16} />
-          {t('Conectar WhatsApp por QR')}
+          {t('Conectar WhatsApp')}
         </button>
       </div>
       {tab === 'connections' ? (
@@ -325,7 +334,21 @@ export default function OutreachPage({
                   )}
                 </span>
               </header>
-              {session.qr && session.status === 'qr' ? (
+              {session.pairingCode && session.status === 'pairing' ? (
+                <div className="outreach-pairing">
+                  <strong className="outreach-pairing-code">
+                    {formatPairingCode(session.pairingCode)}
+                  </strong>
+                  <p>
+                    {t(
+                      'No WhatsApp: Dispositivos conectados → Conectar um dispositivo → Conectar com número de telefone. Digite este código.',
+                    )}
+                  </p>
+                  {session.pairingPhone && (
+                    <p className="outreach-pairing-phone">+{session.pairingPhone}</p>
+                  )}
+                </div>
+              ) : session.qr && session.status === 'qr' ? (
                 <div className="outreach-qr">
                   <img src={session.qr} alt={t('QR para conectar seu WhatsApp')} />
                   <p>
@@ -342,8 +365,12 @@ export default function OutreachPage({
                       session.status === 'ready'
                         ? 'Conexão disponível para suas filas individuais.'
                         : session.desiredConnected
-                          ? 'Preparando a conexão. O QR aparecerá aqui.'
-                          : 'Clique em conectar para gerar um QR.',
+                          ? session.authMethod === 'pairing'
+                            ? 'Preparando a conexão. O código aparecerá aqui.'
+                            : 'Preparando a conexão. O QR aparecerá aqui.'
+                          : session.authMethod === 'pairing'
+                            ? 'Clique em conectar para gerar o código do telefone.'
+                            : 'Clique em conectar para gerar um QR.',
                     )}
                   </span>
                 </div>
@@ -404,7 +431,7 @@ export default function OutreachPage({
               <h2>{t('Conecte seu primeiro número')}</h2>
               <p>{t('As conexões deste robô são independentes das contas da API oficial.')}</p>
               <button className="outreach-primary" onClick={showConnection}>
-                {t('Conectar WhatsApp por QR')}
+                {t('Conectar WhatsApp')}
               </button>
             </div>
           )}
@@ -508,7 +535,7 @@ export default function OutreachPage({
                 className="outreach-primary"
                 onClick={() => (sessions.length ? showRun() : setTab('connections'))}
               >
-                {t(sessions.length ? 'Nova fila individual' : 'Ver conexões QR')}
+                {t(sessions.length ? 'Nova fila individual' : 'Ver conexões WhatsApp')}
               </button>
             </div>
           )}
@@ -594,7 +621,7 @@ export default function OutreachPage({
         aria-labelledby="outreach-connection-title"
       >
         <header>
-          <h2 id="outreach-connection-title">{t('Conectar WhatsApp por QR')}</h2>
+          <h2 id="outreach-connection-title">{t('Conectar WhatsApp')}</h2>
           <button
             disabled={busy}
             aria-label={t('Fechar formulário')}
@@ -613,6 +640,10 @@ export default function OutreachPage({
                 name: sessionName,
                 dailyLimit: limit,
                 testOnly,
+                authMethod: testOnly ? 'qr' : authMethod,
+                ...(authMethod === 'pairing' && !testOnly
+                  ? { pairingPhone }
+                  : {}),
               })
             ) {
               connectionDialog.current?.close();
@@ -640,6 +671,42 @@ export default function OutreachPage({
               onChange={(e) => setLimit(Number(e.target.value))}
             />
           </label>
+          {!testOnly && (
+            <fieldset className="outreach-auth-method">
+              <legend>{t('Como conectar')}</legend>
+              <label className="outreach-check">
+                <input
+                  type="radio"
+                  name="authMethod"
+                  checked={authMethod === 'pairing'}
+                  onChange={() => setAuthMethod('pairing')}
+                />
+                {t('Código do telefone (sem QR)')}
+              </label>
+              <label className="outreach-check">
+                <input
+                  type="radio"
+                  name="authMethod"
+                  checked={authMethod === 'qr'}
+                  onChange={() => setAuthMethod('qr')}
+                />
+                {t('Escanear QR code')}
+              </label>
+            </fieldset>
+          )}
+          {!testOnly && authMethod === 'pairing' && (
+            <label>
+              {t('Telefone do WhatsApp com código do país')}
+              <input
+                required
+                inputMode="tel"
+                pattern="[+0-9 () .-]{8,25}"
+                placeholder="5511999999999"
+                value={pairingPhone}
+                onChange={(e) => setPairingPhone(e.target.value)}
+              />
+            </label>
+          )}
           {data?.simulation && (
             <label className="outreach-check">
               <input
@@ -652,7 +719,11 @@ export default function OutreachPage({
           )}
           <p>
             {t(
-              'Depois de adicionar, clique em Conectar e escaneie o QR com o telefone. As credenciais ficam somente neste servidor.',
+              testOnly
+                ? 'Depois de adicionar, clique em Conectar. As credenciais ficam somente neste servidor.'
+                : authMethod === 'pairing'
+                  ? 'Depois de adicionar, clique em Conectar e digite o código no WhatsApp do telefone. As credenciais ficam somente neste servidor.'
+                  : 'Depois de adicionar, clique em Conectar e escaneie o QR com o telefone. As credenciais ficam somente neste servidor.',
             )}
           </p>
           <button className="outreach-primary" disabled={busy}>
