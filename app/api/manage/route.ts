@@ -95,6 +95,7 @@ export async function POST(req: NextRequest) {
       const phone = required(b.phone, 'Telefone').replace(/[\s()+.\-]/g, '');
       if (!/^[1-9]\d{7,14}$/.test(phone))
         throw new Error('Informe um telefone internacional válido com código do país.');
+      const company = text(b.company, 200);
       const source = text(b.source, 500);
       if (b.consent === true && !source)
         throw new Error('Informe a origem e data do consentimento.');
@@ -105,14 +106,23 @@ export async function POST(req: NextRequest) {
         if (existing) {
           existing.deletedAt = undefined;
           existing.name = name;
+          existing.company = company || undefined;
           // Restore identity/history without undoing suppression or canceled jobs.
           existing.consent = false;
           audit(s, 'Contato removido restaurado pelo cadastro manual.');
           return { restored: true, id: existing.id };
         }
         const id = crypto.randomUUID();
-        s.contacts.push({ id, name, phone, source, consent: b.consent === true && !!source,
-          optedOut: false, createdAt: new Date().toISOString() });
+        s.contacts.push({
+          id,
+          name,
+          ...(company ? { company } : {}),
+          phone,
+          source,
+          consent: b.consent === true && !!source,
+          optedOut: false,
+          createdAt: new Date().toISOString(),
+        });
         audit(s, 'Contato cadastrado manualmente.');
         return { restored: false, id };
       });
@@ -146,6 +156,7 @@ export async function POST(req: NextRequest) {
           contact.source = '';
         }
         contact.name = name;
+        contact.company = text(b.company, 200) || undefined;
         contact.phone = phone;
         contact.lists = [...new Set<string>(b.lists.map((list: string) => list.trim()))];
         audit(s, 'Contato atualizado.');

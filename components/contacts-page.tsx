@@ -44,7 +44,7 @@ export default function ContactsPage({
   busy: boolean;
   onImport: () => void;
   onAdd: () => void;
-  onSave: (c: Pick<Contact, 'id' | 'name' | 'phone' | 'lists'>) => Promise<boolean>;
+  onSave: (c: Pick<Contact, 'id' | 'name' | 'phone' | 'lists' | 'company'>) => Promise<boolean>;
   onPermission: (c: Contact) => void;
   onPermissionSelected: (contacts: Contact[], grant: boolean) => void;
   onRemove: (ids: string[]) => Promise<boolean>;
@@ -670,6 +670,7 @@ export default function ContactsPage({
                 id: editing.id,
                 name: String(form.get('name')),
                 phone: String(form.get('phone')),
+                company: String(form.get('company') || '').trim() || undefined,
                 lists: String(form.get('lists'))
                   .split(',')
                   .map((x) => x.trim())
@@ -695,6 +696,15 @@ export default function ContactsPage({
             <label>
               {t('Nome')}
               <input name="name" required maxLength={200} defaultValue={editing.name} />
+            </label>
+            <label>
+              {t('Empresa')}
+              <input
+                name="company"
+                maxLength={200}
+                defaultValue={editing.company || ''}
+                placeholder={t('Opcional')}
+              />
             </label>
             <label>
               {t('Telefone com código do país')}

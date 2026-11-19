@@ -747,6 +747,7 @@ export const english: Record<string, string> = {
   Telefone: 'Phone',
   Permissão: 'Permission',
   Empresa: 'Company',
+  Opcional: 'Optional',
   Origem: 'Source',
   Ações: 'Actions',
   Descadastrado: 'Unsubscribed',

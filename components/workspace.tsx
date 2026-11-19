@@ -578,6 +578,15 @@ export default function Workspace() {
                   <input name="name" required className={field} />
                 </Label>
                 <Label>
+                  {t('Empresa')}
+                  <input
+                    name="company"
+                    maxLength={200}
+                    className={field}
+                    placeholder={t('Opcional')}
+                  />
+                </Label>
+                <Label>
                   {t('Telefone com código do país')}
                   <input
                     name="phone"
