@@ -98,6 +98,20 @@ export const english: Record<string, string> = {
   'Telefone do WhatsApp com código do país': 'WhatsApp phone with country code',
   'Informe o telefone do WhatsApp com código do país.':
     'Enter the WhatsApp phone number with country code.',
+  'Não foi possível gerar o código de pareamento. Aguarde e tente novamente, ou conecte por QR.':
+    'Could not generate the pairing code. Wait and try again, or link with QR.',
+  'WhatsApp limitou tentativas de código. Aguarde alguns minutos ou conecte por QR.':
+    'WhatsApp rate-limited pairing codes. Wait a few minutes or link with QR.',
+  'Código de telefone indisponível no momento. Escaneie o QR para conectar.':
+    'Phone code unavailable right now. Scan the QR to link.',
+  'Não foi possível gerar o código de telefone. Escolha tentar de novo ou conectar por QR.':
+    'Could not generate the phone code. Choose try again or link with QR.',
+  'Tentar código de telefone de novo': 'Try phone code again',
+  'Conectar por QR': 'Link with QR',
+  'Código indisponível': 'Code unavailable',
+  'Nenhuma falha de código de telefone para resolver.':
+    'There is no phone-code failure to resolve.',
+  'Esta conexão não usa código de telefone.': 'This connection does not use a phone code.',
   'Clique em conectar para gerar o código do telefone.':
     'Click Connect to generate the phone pairing code.',
   'Preparando a conexão. O código aparecerá aqui.':

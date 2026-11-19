@@ -108,9 +108,15 @@ export async function POST(request: NextRequest) {
           // already starting, showing a QR/code, or connected.
           if (body.action === 'session-connect' && session.desiredConnected &&
               outreachWorkerLive(state) &&
-              ['queued', 'connecting', 'qr', 'pairing', 'authenticated', 'ready'].includes(
-                session.status,
-              ))
+              [
+                'queued',
+                'connecting',
+                'qr',
+                'pairing',
+                'pairing-failed',
+                'authenticated',
+                'ready',
+              ].includes(session.status))
             return;
           session.generation++;
           session.desiredConnected = body.action === 'session-connect';
@@ -120,6 +126,8 @@ export async function POST(request: NextRequest) {
           session.qrExpiresAt = undefined;
           session.pairingCode = undefined;
           session.pairingCodeExpiresAt = undefined;
+          session.pairingAction = undefined;
+          if (body.action === 'session-connect') session.forceQr = false;
           session.error = undefined;
         }
         session.updatedAt = Date.now();
@@ -129,6 +137,35 @@ export async function POST(request: NextRequest) {
             .forEach((run) => {
               run.status = 'paused';
             });
+      } else if (
+        body.action === 'session-retry-pairing' ||
+        body.action === 'session-use-qr'
+      ) {
+        const session = state.outreachSessions.find((s) => s.id === body.id);
+        if (!session) throw new Error('Conexão inexistente.');
+        if (!session.desiredConnected || session.status !== 'pairing-failed')
+          throw new Error('Nenhuma falha de código de telefone para resolver.');
+        if (session.authMethod !== 'pairing' || !session.pairingPhone)
+          throw new Error('Esta conexão não usa código de telefone.');
+        if (body.action === 'session-use-qr') {
+          // Restart browser in QR mode — pairing clients never register QR listeners.
+          session.forceQr = true;
+          session.generation++;
+          session.desiredConnected = true;
+          session.status = 'queued';
+          session.pairingAction = undefined;
+        } else {
+          session.forceQr = false;
+          session.pairingAction = 'retry';
+          session.status = 'connecting';
+        }
+        session.error = undefined;
+        session.qr = undefined;
+        session.qrExpiresAt = undefined;
+        session.pairingCode = undefined;
+        session.pairingCodeExpiresAt = undefined;
+        session.updatedAt = Date.now();
+        if (!outreachWorkerLive(state)) launchWorker = true;
       } else if (body.action === 'session-remove') {
         const index = state.outreachSessions.findIndex((s) => s.id === body.id);
         if (index < 0) throw new Error('Conexão inexistente.');
@@ -140,6 +177,8 @@ export async function POST(request: NextRequest) {
         session.qrExpiresAt = undefined;
         session.pairingCode = undefined;
         session.pairingCodeExpiresAt = undefined;
+        session.pairingAction = undefined;
+        session.forceQr = undefined;
         session.error = undefined;
         state.outreachRuns
           .filter((run) => run.senderIds.includes(session.id) && run.status === 'running')
@@ -150,7 +189,7 @@ export async function POST(request: NextRequest) {
           run.senderIds = run.senderIds.filter((id) => id !== session.id);
         }
         state.outreachSessions.splice(index, 1);
-        audit(state, 'Robô: conexão QR removida.');
+        audit(state, 'Robô: conexão WhatsApp removida.');
         try {
           rmSync(path.join(dataDir(), 'outreach-auth', `session-${session.id}`), {
             recursive: true,

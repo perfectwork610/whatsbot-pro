@@ -16,9 +16,14 @@ export type OutreachSession = {
     | 'connecting'
     | 'qr'
     | 'pairing'
+    | 'pairing-failed'
     | 'authenticated'
     | 'ready'
     | 'error';
+  /** User choice after phone-code failure: retry code or switch to QR. */
+  pairingAction?: 'retry' | 'qr';
+  /** After user chooses QR, reconnect without phone-code pairing. */
+  forceQr?: boolean;
   phone?: string;
   qr?: string;
   qrExpiresAt?: number;

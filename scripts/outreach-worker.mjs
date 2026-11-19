@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import pkg from 'whatsapp-web.js';
@@ -9,7 +9,7 @@ import { dispatchOutreach } from '../lib/outreach-dispatch.ts';
 import { OutreachClient } from '../lib/outreach-client.mjs';
 import { outreachAckStatus } from '../lib/outreach-engine.ts';
 import { closeOutreachClient } from '../lib/outreach-lifecycle.mjs';
-const { Client, LocalAuth } = pkg;
+const { LocalAuth } = pkg;
 const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
 const owner = randomUUID();
 const clients = new Map();
@@ -121,6 +121,59 @@ async function inbound(session, client, message) {
     });
   });
 }
+function markPairingFailed(sessionId, generation, message) {
+  patch(sessionId, generation, {
+    status: 'pairing-failed',
+    pairingAction: undefined,
+    pairingCode: undefined,
+    pairingCodeExpiresAt: undefined,
+    qr: undefined,
+    qrExpiresAt: undefined,
+    error:
+      message ||
+      'Não foi possível gerar o código de telefone. Escolha tentar de novo ou conectar por QR.',
+  });
+}
+function publishPairingCodeFor(sessionId, generation, code) {
+  const normalized = String(code || '')
+    .replace(/\s+/g, '')
+    .toUpperCase();
+  if (!normalized) return false;
+  const current = read().outreachSessions?.find((s) => s.id === sessionId);
+  if (!current?.desiredConnected || current.generation !== generation) return false;
+  patch(sessionId, generation, {
+    status: 'pairing',
+    pairingCode: normalized,
+    pairingCodeExpiresAt: Date.now() + 170000,
+    qr: undefined,
+    qrExpiresAt: undefined,
+    pairingAction: undefined,
+    error: undefined,
+  });
+  return true;
+}
+async function processPairingActions() {
+  for (const [id, entry] of clients) {
+    const session = read().outreachSessions?.find((s) => s.id === id);
+    if (!session?.desiredConnected || session.generation !== entry.generation) continue;
+    if (session.pairingAction !== 'retry' || entry.pairingBusy) continue;
+    entry.pairingBusy = true;
+    patch(id, session.generation, {
+      pairingAction: undefined,
+      status: 'connecting',
+      error: undefined,
+    });
+    try {
+      const code = await entry.client.requestPairingCode(session.pairingPhone);
+      if (!publishPairingCodeFor(id, session.generation, code))
+        markPairingFailed(id, session.generation);
+    } catch (error) {
+      markPairingFailed(id, session.generation, errorText(error));
+    } finally {
+      entry.pairingBusy = false;
+    }
+  }
+}
 async function connectionCycle() {
   const sessions = read().outreachSessions || [];
   for (const [id, entry] of clients) {
@@ -130,6 +183,7 @@ async function connectionCycle() {
       if (clients.get(id) === entry) clients.delete(id);
     }
   }
+  await processPairingActions();
   for (const session of sessions) {
     if (!session.desiredConnected) continue;
     if (session.testOnly) {
@@ -146,20 +200,42 @@ async function connectionCycle() {
     if (clients.has(session.id)) continue;
     const executablePath = browserPath();
     const usePairing =
+      !session.forceQr &&
       session.authMethod === 'pairing' &&
       typeof session.pairingPhone === 'string' &&
       /^[1-9]\d{7,14}$/.test(session.pairingPhone);
+    // Phone pairing only works when pairWithPhoneNumber is set at Client construction.
+    // QR fallback reconnects with forceQr so this option is omitted.
+    if (usePairing) {
+      try {
+        rmSync(path.join(dataDir, 'outreach-auth', `session-${session.id}`), {
+          recursive: true,
+          force: true,
+        });
+      } catch {
+        /* Profile may be locked briefly after a previous close. */
+      }
+    }
     const client = new OutreachClient({
       authStrategy: new LocalAuth({
         clientId: session.id,
         dataPath: path.join(dataDir, 'outreach-auth'),
       }),
-      webVersionCache: { type: 'none' },
-      qrMaxRetries: 5,
-      authTimeoutMs: 60000,
-      deviceName: 'WhatsBot Individual Outreach',
-      userAgent: false,
-      puppeteer: { headless: true, ...(executablePath ? { executablePath } : {}) },
+      webVersionCache: { type: 'local' },
+      qrMaxRetries: 8,
+      authTimeoutMs: 90000,
+      deviceName: 'WhatsBot Pro',
+      browserName: 'Chrome',
+      puppeteer: {
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-blink-features=AutomationControlled',
+        ],
+        ...(executablePath ? { executablePath } : {}),
+      },
       ...(usePairing
         ? {
             pairWithPhoneNumber: {
@@ -170,7 +246,11 @@ async function connectionCycle() {
           }
         : {}),
     });
-    const entry = { client, generation: session.generation };
+    const entry = {
+      client,
+      generation: session.generation,
+      pairingBusy: false,
+    };
     clients.set(session.id, entry);
     client.on('connector_error', (error) => {
       patch(session.id, session.generation, {
@@ -180,13 +260,18 @@ async function connectionCycle() {
         qr: undefined,
         pairingCode: undefined,
         pairingCodeExpiresAt: undefined,
+        pairingAction: undefined,
       });
+    });
+    client.on('pairing_failed', (error) => {
+      markPairingFailed(session.id, session.generation, errorText(error));
     });
     patch(session.id, session.generation, {
       status: 'connecting',
       qr: undefined,
       pairingCode: undefined,
       pairingCodeExpiresAt: undefined,
+      pairingAction: undefined,
       error: undefined,
     });
     client.on('qr', async (qr) => {
@@ -198,14 +283,16 @@ async function connectionCycle() {
           errorCorrectionLevel: 'M',
         });
         const current = read().outreachSessions?.find((s) => s.id === session.id);
-        if (current?.desiredConnected && current.generation === session.generation)
-          patch(session.id, session.generation, {
-            status: 'qr',
-            qr: png,
-            qrExpiresAt: Date.now() + 55000,
-            pairingCode: undefined,
-            pairingCodeExpiresAt: undefined,
-          });
+        if (!current?.desiredConnected || current.generation !== session.generation) return;
+        patch(session.id, session.generation, {
+          status: 'qr',
+          qr: png,
+          qrExpiresAt: Date.now() + 55000,
+          pairingCode: undefined,
+          pairingCodeExpiresAt: undefined,
+          pairingAction: undefined,
+          error: undefined,
+        });
       } catch (error) {
         patch(session.id, session.generation, {
           status: 'error',
@@ -215,19 +302,7 @@ async function connectionCycle() {
       }
     });
     client.on('code', (code) => {
-      const current = read().outreachSessions?.find((s) => s.id === session.id);
-      if (!current?.desiredConnected || current.generation !== session.generation) return;
-      const normalized = String(code || '')
-        .replace(/\s+/g, '')
-        .toUpperCase();
-      if (!normalized) return;
-      patch(session.id, session.generation, {
-        status: 'pairing',
-        pairingCode: normalized,
-        pairingCodeExpiresAt: Date.now() + 170000,
-        qr: undefined,
-        qrExpiresAt: undefined,
-      });
+      publishPairingCodeFor(session.id, session.generation, code);
     });
     client.on('authenticated', () =>
       patch(session.id, session.generation, {
@@ -236,6 +311,8 @@ async function connectionCycle() {
         qrExpiresAt: undefined,
         pairingCode: undefined,
         pairingCodeExpiresAt: undefined,
+        pairingAction: undefined,
+        forceQr: false,
       }),
     );
     client.on('ready', () =>
@@ -245,6 +322,8 @@ async function connectionCycle() {
         qr: undefined,
         pairingCode: undefined,
         pairingCodeExpiresAt: undefined,
+        pairingAction: undefined,
+        forceQr: false,
         error: undefined,
       }),
     );
@@ -256,6 +335,7 @@ async function connectionCycle() {
         qr: undefined,
         pairingCode: undefined,
         pairingCodeExpiresAt: undefined,
+        pairingAction: undefined,
       }),
     );
     client.on('disconnected', () =>
@@ -265,6 +345,7 @@ async function connectionCycle() {
         qr: undefined,
         pairingCode: undefined,
         pairingCodeExpiresAt: undefined,
+        pairingAction: undefined,
       }),
     );
     client.on('message', (message) => {
@@ -285,6 +366,9 @@ async function connectionCycle() {
         error: errorText(error),
         desiredConnected: false,
         qr: undefined,
+        pairingCode: undefined,
+        pairingCodeExpiresAt: undefined,
+        pairingAction: undefined,
       });
       // connectionCycle owns shutdown; do not release the profile while the
       // failing browser is still closing.
@@ -351,6 +435,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   });
   process.on('SIGTERM', () => {
     stopping = true;
+  });
+  // Pairing-code requests inside whatsapp-web.js are not awaited; keep the worker alive.
+  process.on('unhandledRejection', (error) => {
+    console.error('Unhandled rejection in outreach worker:', errorText(error));
   });
   runOutreachWorker({ once: process.argv.includes('--once') }).catch((error) => {
     console.error(errorText(error));

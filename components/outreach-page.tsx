@@ -148,6 +148,7 @@ export default function OutreachPage({
     connecting: 'Conectando',
     qr: 'Escaneie o QR',
     pairing: 'Digite o código',
+    'pairing-failed': 'Código indisponível',
     authenticated: 'Autenticada',
     ready: 'Conectada',
     error: 'Erro',
@@ -348,6 +349,33 @@ export default function OutreachPage({
                     <p className="outreach-pairing-phone">+{session.pairingPhone}</p>
                   )}
                 </div>
+              ) : session.status === 'pairing-failed' ? (
+                <div className="outreach-pairing-choice">
+                  <p>
+                    {t(
+                      session.error ||
+                        'Não foi possível gerar o código de telefone. Escolha tentar de novo ou conectar por QR.',
+                    )}
+                  </p>
+                  <div className="outreach-pairing-choice-actions">
+                    <button
+                      disabled={busy}
+                      className="outreach-secondary"
+                      onClick={() =>
+                        void action({ action: 'session-retry-pairing', id: session.id })
+                      }
+                    >
+                      {t('Tentar código de telefone de novo')}
+                    </button>
+                    <button
+                      disabled={busy}
+                      className="outreach-primary"
+                      onClick={() => void action({ action: 'session-use-qr', id: session.id })}
+                    >
+                      {t('Conectar por QR')}
+                    </button>
+                  </div>
+                </div>
               ) : session.qr && session.status === 'qr' ? (
                 <div className="outreach-qr">
                   <img src={session.qr} alt={t('QR para conectar seu WhatsApp')} />
@@ -375,7 +403,9 @@ export default function OutreachPage({
                   </span>
                 </div>
               )}
-              {session.error && <p className="outreach-session-error">{session.error}</p>}
+              {session.error && session.status !== 'pairing-failed' && (
+                <p className="outreach-session-error">{t(session.error)}</p>
+              )}
               <footer>
                 <label>
                   {t('Limite local / 24h')}
